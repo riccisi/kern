@@ -37,7 +37,7 @@
         </dependency>
         <dependency>
             <groupId>com.linecorp.armeria</groupId>
-            <artifactId>armeria-spring-boot3-starter</artifactId>
+            <artifactId>armeria-spring-boot4-starter</artifactId>
         </dependency>
         <dependency>
             <groupId>io.micrometer</groupId>
