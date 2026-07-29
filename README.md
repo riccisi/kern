@@ -14,11 +14,15 @@ Kern is a standalone event database designed to support traditional Event Sourci
 
 ## Modules
 
-- `kern-api`: public domain model and storage-neutral contracts
-- `kern-core`: append coordination, consistency, subscriptions and services
+- `kern-api`: public domain model and storage-neutral client contracts
+- `kern-core`: append coordination, consistency, subscriptions, and storage SPI
 - `kern-rocksdb`: RocksDB storage implementation
-- `kern-protocol`: Protobuf and gRPC contracts
-- `kern-armeria`: Armeria data-plane services
-- `kern-spring`: application bootstrap, configuration and control plane
-- `kern-client`: Java client
+- `kern-protocol`: versioned Protobuf and gRPC wire contracts
+- `kern-armeria`: Armeria data-plane adapter
+- `kern-server`: executable server, application assembly, and control plane
+- `kern-client`: remote Java client
 - `kern-integration-tests`: end-to-end and failure tests
+
+The authoritative module boundaries, dependency direction, and Java package
+conventions are defined in
+[ADR-0001](docs/architecture/adr/0001-module-boundaries-and-package-rules.md).
