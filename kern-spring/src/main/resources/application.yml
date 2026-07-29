@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: kern
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+kern:
+  storage:
+    directory: ./data
+  append:
+    sync-wal: true
