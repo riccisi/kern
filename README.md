@@ -12,6 +12,21 @@ Kern is a standalone event database designed to support traditional Event Sourci
 - Java root package: `it.riccisi.kern`
 - Initial version: `0.1.0-SNAPSHOT`
 
+## Development Environment
+
+Kern targets Java 25. The repository uses `direnv` to select the project JDK
+without changing the system Java version.
+
+On macOS with Homebrew:
+
+```bash
+brew install openjdk@25 direnv
+echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
+source ~/.zshrc
+direnv allow .
+mvn clean verify
+```
+
 ## Modules
 
 - `kern-api`: public domain model and storage-neutral client contracts
