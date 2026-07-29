@@ -18,7 +18,7 @@
         <module>kern-rocksdb</module>
         <module>kern-protocol</module>
         <module>kern-armeria</module>
-        <module>kern-spring</module>
+        <module>kern-server</module>
         <module>kern-client</module>
         <module>kern-integration-tests</module>
     </modules>
