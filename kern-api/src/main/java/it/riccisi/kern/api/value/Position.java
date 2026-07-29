@@ -1,4 +1,4 @@
-package it.riccisi.kern.api;
+package it.riccisi.kern.api.value;
 
 public record Position(long value) {
     public Position {

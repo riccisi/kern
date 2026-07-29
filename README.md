@@ -41,3 +41,13 @@ mvn clean verify
 The authoritative module boundaries, dependency direction, and Java package
 conventions are defined in
 [ADR-0001](docs/architecture/adr/0001-module-boundaries-and-package-rules.md).
+
+## Public API Package Layout
+
+The `kern-api` module keeps public capabilities at the package root and groups
+supporting public types by domain role:
+
+- `it.riccisi.kern.api`: storage-neutral public capabilities, such as `EventStore`
+- `it.riccisi.kern.api.value`: reusable public value objects
+- `it.riccisi.kern.api.append`: append request, result, event data, durability, and conditions
+- `it.riccisi.kern.api.error`: public exception hierarchy for protocol and client mapping
