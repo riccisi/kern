@@ -51,3 +51,12 @@ supporting public types by domain role:
 - `it.riccisi.kern.api.value`: reusable public value objects
 - `it.riccisi.kern.api.append`: append request, result, event data, durability, and conditions
 - `it.riccisi.kern.api.error`: public exception hierarchy for protocol and client mapping
+
+## Core Package Layout
+
+The `kern-core` module owns behavior and internal capability boundaries used by
+the event store runtime:
+
+- `it.riccisi.kern.core.storage`: storage SPI, prepared append model, read
+  snapshots, revision reads, event pages, high watermark, diagnostics, storage
+  flush, and lifecycle contracts
