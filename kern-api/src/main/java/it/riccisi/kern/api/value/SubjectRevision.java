@@ -1,4 +1,4 @@
-package it.riccisi.kern.api;
+package it.riccisi.kern.api.value;
 
 public record SubjectRevision(long value) {
     public SubjectRevision {

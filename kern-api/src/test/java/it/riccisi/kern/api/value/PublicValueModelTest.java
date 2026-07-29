@@ -1,4 +1,4 @@
-package it.riccisi.kern.api;
+package it.riccisi.kern.api.value;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
