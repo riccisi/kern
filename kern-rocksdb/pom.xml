@@ -15,6 +15,11 @@
     <dependencies>
         <dependency>
             <groupId>it.riccisi.kern</groupId>
+            <artifactId>kern-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>it.riccisi.kern</groupId>
             <artifactId>kern-core</artifactId>
             <version>${project.version}</version>
         </dependency>
