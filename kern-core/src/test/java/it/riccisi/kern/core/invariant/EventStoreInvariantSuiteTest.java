@@ -13,6 +13,7 @@ final class EventStoreInvariantSuiteTest {
     void declaresTheFoundationInvariantSet() {
         assertThat(catalog()).extracting(Invariant::id).containsExactlyInAnyOrder(
             "global-positions-are-unique-and-contiguous",
+            "append-batch-preserves-request-order",
             "subject-revisions-are-contiguous",
             "durable-append-survives-restart",
             "append-batch-is-atomic",
@@ -51,7 +52,11 @@ final class EventStoreInvariantSuiteTest {
     void namesCurrentlyExecutableCoverage() {
         assertThat(catalog().stream().filter(invariant -> invariant.status() == Status.EXECUTABLE))
             .extracting(Invariant::coverage)
-            .containsExactly("CommitOutcomeInvariantTest");
+            .containsExactly(
+                "CommitOutcomeInvariantTest, AppendCoordinatorInvariantTest",
+                "AppendCoordinatorInvariantTest",
+                "AppendCoordinatorInvariantTest"
+            );
     }
 
     private static List<Invariant> catalog() {
@@ -61,15 +66,23 @@ final class EventStoreInvariantSuiteTest {
                 "Committed positions are unique, strictly increasing, and have no ordinary-path gaps",
                 "core unit",
                 Status.EXECUTABLE,
-                "CommitOutcomeInvariantTest",
+                "CommitOutcomeInvariantTest, AppendCoordinatorInvariantTest",
                 "https://github.com/riccisi/kern/issues/7"
+            ),
+            new Invariant(
+                "append-batch-preserves-request-order",
+                "Events inside an accepted append batch keep the caller-provided order",
+                "core unit",
+                Status.EXECUTABLE,
+                "AppendCoordinatorInvariantTest",
+                "https://github.com/riccisi/kern/issues/14"
             ),
             new Invariant(
                 "subject-revisions-are-contiguous",
                 "Every subject advances by contiguous revisions starting from the first committed event",
                 "core unit",
-                Status.PENDING,
-                "Append coordinator invariant test",
+                Status.EXECUTABLE,
+                "AppendCoordinatorInvariantTest",
                 "https://github.com/riccisi/kern/issues/14"
             ),
             new Invariant(
