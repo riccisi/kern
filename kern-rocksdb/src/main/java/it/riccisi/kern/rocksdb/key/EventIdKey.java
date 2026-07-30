@@ -2,20 +2,19 @@ package it.riccisi.kern.rocksdb.key;
 
 import it.riccisi.kern.api.value.EventId;
 import it.riccisi.kern.api.value.Namespace;
+import it.riccisi.kern.rocksdb.binary.JoinedBytes;
+import it.riccisi.kern.rocksdb.binary.UuidBytes;
 import java.util.Objects;
 
-public record EventIdKey(Namespace namespace, EventId id) implements BinaryKey {
-    public EventIdKey {
-        Objects.requireNonNull(namespace, "namespace must not be null");
-        Objects.requireNonNull(id, "event id must not be null");
-    }
+public final class EventIdKey extends BinaryKeyEnvelope {
 
-    @Override
-    public byte[] bytes() {
-        return new KeyBuffer()
-            .text(namespace.value())
-            .kind(KeyKind.EVENT_ID)
-            .uuid(id.value())
-            .bytes();
+    public EventIdKey(Namespace namespace, EventId id) {
+        super(
+            new JoinedBytes(
+                new NamespaceKey(namespace),
+                KeyKind.EVENT_ID,
+                new UuidBytes(Objects.requireNonNull(id, "event id must not be null").value())
+            )
+        );
     }
 }

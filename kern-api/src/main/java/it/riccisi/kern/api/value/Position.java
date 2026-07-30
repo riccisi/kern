@@ -1,6 +1,7 @@
 package it.riccisi.kern.api.value;
 
 public record Position(long value) {
+
     public Position {
         if (value < 0) {
             throw new IllegalArgumentException("position must not be negative");

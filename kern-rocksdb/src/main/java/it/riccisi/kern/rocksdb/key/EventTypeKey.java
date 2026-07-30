@@ -3,22 +3,21 @@ package it.riccisi.kern.rocksdb.key;
 import it.riccisi.kern.api.value.EventType;
 import it.riccisi.kern.api.value.Namespace;
 import it.riccisi.kern.api.value.Position;
+import it.riccisi.kern.rocksdb.binary.JoinedBytes;
+import it.riccisi.kern.rocksdb.binary.LongBytes;
+import it.riccisi.kern.rocksdb.binary.TextBytes;
 import java.util.Objects;
 
-public record EventTypeKey(Namespace namespace, EventType type, Position position) implements BinaryKey {
-    public EventTypeKey {
-        Objects.requireNonNull(namespace, "namespace must not be null");
-        Objects.requireNonNull(type, "event type must not be null");
-        Objects.requireNonNull(position, "position must not be null");
-    }
+public final class EventTypeKey extends BinaryKeyEnvelope {
 
-    @Override
-    public byte[] bytes() {
-        return new KeyBuffer()
-            .text(namespace.value())
-            .kind(KeyKind.TYPE)
-            .text(type.value())
-            .orderedLong(position.value())
-            .bytes();
+    public EventTypeKey(final Namespace namespace, final EventType type, final Position position) {
+        super(
+            new JoinedBytes(
+                new NamespaceKey(namespace),
+                KeyKind.TYPE,
+                new TextBytes(Objects.requireNonNull(type, "event type must not be null").value()),
+                new LongBytes(Objects.requireNonNull(position, "position must not be null").value())
+            )
+        );
     }
 }

@@ -14,8 +14,16 @@ key belongs to the system column family.
 ## Key Shapes
 
 Each key shape is represented by a concrete `BinaryKey` object in
-`it.riccisi.kern.rocksdb.key`. The object owns the binary encoding for the
-storage coordinate it represents.
+`it.riccisi.kern.rocksdb.key`. `BinaryKey` specializes the Cactoos `Bytes`
+contract used by RocksDB-facing objects that can provide their binary
+representation. The key object owns the binary encoding for the storage
+coordinate it represents.
+
+Key encoding is declarative composition of byte-producing objects. Key-specific
+policy stays inside binary components: `KeyKind` provides its marker,
+`UuidBytes` provides raw UUID bits, `TextBytes` provides length-prefixed UTF-8
+components, and numeric value objects provide their already-validated values as
+ordered big-endian longs through `LongBytes`.
 
 | Key | Shape |
 | --- | --- |
