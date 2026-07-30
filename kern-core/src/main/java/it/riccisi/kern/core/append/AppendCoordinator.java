@@ -40,7 +40,7 @@ public final class AppendCoordinator implements EventStore {
                 clock.instant()
             );
             return CompletableFuture.completedFuture(
-                storage.commit(List.of(append), request.durability()).results().getFirst()
+                storage.commit(List.of(append), request.durability()).onlyResult()
             );
         } catch (RuntimeException exception) {
             return CompletableFuture.failedFuture(exception);

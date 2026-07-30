@@ -25,6 +25,23 @@ final class CommitOutcomeInvariantTest {
     }
 
     @Test
+    void returnsTheOnlyResult() {
+        AppendResult result = result(41, 41);
+
+        assertThat(new CommitOutcome(List.of(result), new Position(41)).onlyResult()).isEqualTo(result);
+    }
+
+    @Test
+    void rejectsRequestingOnlyResultFromBatchOutcome() {
+        assertThatThrownBy(() -> new CommitOutcome(
+            List.of(result(41, 41), result(42, 42)),
+            new Position(42)
+        ).onlyResult())
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessage("commit outcome does not contain exactly one append result");
+    }
+
+    @Test
     void rejectsCommittedPositionGaps() {
         assertThatThrownBy(() -> new CommitOutcome(
             List.of(
