@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import it.riccisi.kern.api.error.ConsistencyConflict;
+import it.riccisi.kern.api.error.SubjectRevisionConflict;
 import it.riccisi.kern.api.value.ConsistencyKey;
 import it.riccisi.kern.api.value.ContentType;
 import it.riccisi.kern.api.value.EventId;
@@ -135,6 +136,83 @@ final class AppendContractsTest {
         assertThatThrownBy(() -> new ExpectedConsistency(Map.of(new ConsistencyKey("course:C1"), -1L)))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("consistency revision must not be negative");
+    }
+
+    @Test
+    void letsEachConditionVerifyItsOwnExpectation() {
+        AppendConditionState revisions = new AppendConditionState() {
+            @Override
+            public SubjectRevision subjectRevision(final Subject subject) {
+                return new SubjectRevision(7);
+            }
+
+            @Override
+            public long consistencyRevision(final ConsistencyKey key) {
+                return 11L;
+            }
+        };
+
+        new ExpectedSubjectRevision(new Subject("course:C1"), new SubjectRevision(7))
+            .verify(revisions, "diag-17");
+        new ExpectedConsistency(Map.of(new ConsistencyKey("course:C1"), 11L))
+            .verify(revisions, "diag-17");
+    }
+
+    @Test
+    void reportsConsistencyConflictFromTheCondition() {
+        AppendConditionState revisions = new AppendConditionState() {
+            @Override
+            public SubjectRevision subjectRevision(final Subject subject) {
+                return new SubjectRevision(0);
+            }
+
+            @Override
+            public long consistencyRevision(final ConsistencyKey key) {
+                return 12L;
+            }
+        };
+
+        assertThatThrownBy(() -> new ExpectedConsistency(Map.of(new ConsistencyKey("course:C1"), 11L))
+            .verify(revisions, "diag-17"))
+            .isInstanceOf(ConsistencyConflict.class)
+            .hasMessage("consistency key revision does not match expected revision");
+    }
+
+    @Test
+    void reportsSubjectConflictFromTheCondition() {
+        AppendConditionState revisions = new AppendConditionState() {
+            @Override
+            public SubjectRevision subjectRevision(final Subject subject) {
+                return new SubjectRevision(1);
+            }
+
+            @Override
+            public long consistencyRevision(final ConsistencyKey key) {
+                return 0L;
+            }
+        };
+
+        assertThatThrownBy(() -> new NoSubject(new Subject("course:C1")).verify(revisions, "diag-17"))
+            .isInstanceOf(SubjectRevisionConflict.class)
+            .hasMessage("subject revision does not match expected revision");
+    }
+
+    @Test
+    void identifiesAllRevisionsNeededForAnAppend() {
+        AppendRequest request = new AppendRequest(
+            new Namespace("education"),
+            new IdempotencyKey("append-observed-revisions"),
+            List.of(enrollmentConfirmed()),
+            new ExpectedSubjectRevision(new Subject("student:S1"), new SubjectRevision(3)),
+            Set.of(new ConsistencyKey("course:C1")),
+            Durability.DURABLE
+        );
+
+        assertThat(request.observedSubjects()).containsExactlyInAnyOrder(
+            new Subject("course:C1"),
+            new Subject("student:S1")
+        );
+        assertThat(request.observedConsistencyKeys()).containsExactly(new ConsistencyKey("course:C1"));
     }
 
     @Test

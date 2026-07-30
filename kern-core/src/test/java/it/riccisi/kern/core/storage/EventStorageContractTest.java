@@ -81,8 +81,7 @@ final class EventStorageContractTest {
             validAppendRequest(),
             new RequestDigest(digest),
             "diag-17",
-            Instant.parse("2026-07-29T13:00:00Z"),
-            appendResult()
+            Instant.parse("2026-07-29T13:00:00Z")
         );
         CommitOutcome outcome = new CommitOutcome(results, new Position(17));
         EventQuery query = new EventQuery(
@@ -137,8 +136,7 @@ final class EventStorageContractTest {
             validAppendRequest(),
             new RequestDigest("request-digest-17".getBytes(StandardCharsets.UTF_8)),
             "diag-20260729-17",
-            Instant.parse("2026-07-29T13:00:00Z"),
-            appendResult()
+            Instant.parse("2026-07-29T13:00:00Z")
         );
     }
 
