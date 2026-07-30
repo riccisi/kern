@@ -3,26 +3,21 @@ package it.riccisi.kern.rocksdb.key;
 import it.riccisi.kern.api.value.Namespace;
 import it.riccisi.kern.api.value.Subject;
 import it.riccisi.kern.api.value.SubjectRevision;
+import it.riccisi.kern.rocksdb.binary.JoinedBytes;
+import it.riccisi.kern.rocksdb.binary.LongBytes;
+import it.riccisi.kern.rocksdb.binary.TextBytes;
 import java.util.Objects;
 
-public record SubjectRevisionKey(
-    Namespace namespace,
-    Subject subject,
-    SubjectRevision revision
-) implements BinaryKey {
-    public SubjectRevisionKey {
-        Objects.requireNonNull(namespace, "namespace must not be null");
-        Objects.requireNonNull(subject, "subject must not be null");
-        Objects.requireNonNull(revision, "subject revision must not be null");
-    }
+public final class SubjectRevisionKey extends BinaryKeyEnvelope {
 
-    @Override
-    public byte[] bytes() {
-        return new KeyBuffer()
-            .text(namespace.value())
-            .kind(KeyKind.SUBJECT_REVISION)
-            .text(subject.value())
-            .orderedLong(revision.value())
-            .bytes();
+    public SubjectRevisionKey(final Namespace namespace, final Subject subject, final SubjectRevision revision) {
+        super(
+            new JoinedBytes(
+                new NamespaceKey(namespace),
+                KeyKind.SUBJECT_REVISION,
+                new TextBytes(Objects.requireNonNull(subject, "subject must not be null").value()),
+                new LongBytes(Objects.requireNonNull(revision, "subject revision must not be null").value())
+            )
+        );
     }
 }

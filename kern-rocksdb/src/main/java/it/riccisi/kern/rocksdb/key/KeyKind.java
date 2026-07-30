@@ -1,6 +1,8 @@
 package it.riccisi.kern.rocksdb.key;
 
-enum KeyKind {
+import org.cactoos.Bytes;
+
+enum KeyKind implements Bytes {
     SYSTEM((byte) 0x00),
     EVENT((byte) 0x01),
     SUBJECT_REVISION((byte) 0x02),
@@ -17,7 +19,8 @@ enum KeyKind {
         this.marker = marker;
     }
 
-    void writeTo(KeyBuffer buffer) {
-        buffer.byteValue(marker);
+    @Override
+    public byte[] asBytes() {
+        return new byte[] {marker};
     }
 }
