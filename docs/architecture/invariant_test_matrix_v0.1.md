@@ -21,8 +21,9 @@ executable test.
 
 | Invariant | Layer | Current status | Current coverage | Tracking |
 | --- | --- | --- | --- | --- |
-| Committed positions are unique, strictly increasing, and have no ordinary-path gaps | Core unit | Executable | `CommitOutcomeInvariantTest` | [#7](https://github.com/riccisi/kern/issues/7) |
-| Every subject advances by contiguous revisions starting from the first committed event | Core unit | Pending | Append coordinator invariant test | [#14](https://github.com/riccisi/kern/issues/14) |
+| Committed positions are unique, strictly increasing, and have no ordinary-path gaps | Storage integration | Pending | RocksDB commit position invariant test | [#15](https://github.com/riccisi/kern/issues/15) |
+| Events inside an accepted append batch keep the caller-provided order | Storage integration | Pending | RocksDB append ordering invariant test | [#15](https://github.com/riccisi/kern/issues/15) |
+| Every subject advances by contiguous revisions starting from the first committed event | Storage integration | Pending | RocksDB subject revision invariant test | [#15](https://github.com/riccisi/kern/issues/15) |
 | An append acknowledged as durable is present after storage restart | Storage integration | Pending | RocksDB restart invariant test | [#15](https://github.com/riccisi/kern/issues/15) |
 | A committed append batch is totally present or totally absent | Storage integration | Pending | RocksDB atomic write-batch invariant test | [#15](https://github.com/riccisi/kern/issues/15) |
 | Replaying the same idempotency key and request returns the original result without appending events | Core unit | Pending | Idempotency replay invariant test | [#16](https://github.com/riccisi/kern/issues/16) |

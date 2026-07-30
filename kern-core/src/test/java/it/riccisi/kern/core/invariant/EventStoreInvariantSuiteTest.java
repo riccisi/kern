@@ -13,6 +13,7 @@ final class EventStoreInvariantSuiteTest {
     void declaresTheFoundationInvariantSet() {
         assertThat(catalog()).extracting(Invariant::id).containsExactlyInAnyOrder(
             "global-positions-are-unique-and-contiguous",
+            "append-batch-preserves-request-order",
             "subject-revisions-are-contiguous",
             "durable-append-survives-restart",
             "append-batch-is-atomic",
@@ -48,10 +49,8 @@ final class EventStoreInvariantSuiteTest {
     }
 
     @Test
-    void namesCurrentlyExecutableCoverage() {
-        assertThat(catalog().stream().filter(invariant -> invariant.status() == Status.EXECUTABLE))
-            .extracting(Invariant::coverage)
-            .containsExactly("CommitOutcomeInvariantTest");
+    void doesNotClaimExecutableCoverageBeforeStorageExists() {
+        assertThat(catalog().stream().filter(invariant -> invariant.status() == Status.EXECUTABLE)).isEmpty();
     }
 
     private static List<Invariant> catalog() {
@@ -59,18 +58,26 @@ final class EventStoreInvariantSuiteTest {
             new Invariant(
                 "global-positions-are-unique-and-contiguous",
                 "Committed positions are unique, strictly increasing, and have no ordinary-path gaps",
-                "core unit",
-                Status.EXECUTABLE,
-                "CommitOutcomeInvariantTest",
-                "https://github.com/riccisi/kern/issues/7"
+                "storage integration",
+                Status.PENDING,
+                "RocksDB commit position invariant test",
+                "https://github.com/riccisi/kern/issues/15"
+            ),
+            new Invariant(
+                "append-batch-preserves-request-order",
+                "Events inside an accepted append batch keep the caller-provided order",
+                "storage integration",
+                Status.PENDING,
+                "RocksDB append ordering invariant test",
+                "https://github.com/riccisi/kern/issues/15"
             ),
             new Invariant(
                 "subject-revisions-are-contiguous",
                 "Every subject advances by contiguous revisions starting from the first committed event",
-                "core unit",
+                "storage integration",
                 Status.PENDING,
-                "Append coordinator invariant test",
-                "https://github.com/riccisi/kern/issues/14"
+                "RocksDB subject revision invariant test",
+                "https://github.com/riccisi/kern/issues/15"
             ),
             new Invariant(
                 "durable-append-survives-restart",

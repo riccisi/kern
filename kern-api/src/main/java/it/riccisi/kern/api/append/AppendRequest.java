@@ -3,6 +3,8 @@ package it.riccisi.kern.api.append;
 import it.riccisi.kern.api.value.ConsistencyKey;
 import it.riccisi.kern.api.value.IdempotencyKey;
 import it.riccisi.kern.api.value.Namespace;
+import it.riccisi.kern.api.value.Subject;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -27,5 +29,19 @@ public record AppendRequest(
             Objects.requireNonNull(touchedConsistencyKeys, "touched consistency keys must not be null")
         );
         Objects.requireNonNull(durability, "durability must not be null");
+    }
+
+    public Set<Subject> observedSubjects() {
+        Set<Subject> subjects = new LinkedHashSet<>(condition.observedSubjects());
+        for (EventData event : events) {
+            subjects.add(event.subject());
+        }
+        return Set.copyOf(subjects);
+    }
+
+    public Set<ConsistencyKey> observedConsistencyKeys() {
+        Set<ConsistencyKey> keys = new LinkedHashSet<>(touchedConsistencyKeys);
+        keys.addAll(condition.observedConsistencyKeys());
+        return Set.copyOf(keys);
     }
 }

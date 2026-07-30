@@ -37,4 +37,11 @@ public record CommitOutcome(
             throw new IllegalArgumentException("high watermark must match committed append results");
         }
     }
+
+    public AppendResult onlyResult() {
+        if (results.size() != 1) {
+            throw new IllegalStateException("commit outcome does not contain exactly one append result");
+        }
+        return results.getFirst();
+    }
 }
