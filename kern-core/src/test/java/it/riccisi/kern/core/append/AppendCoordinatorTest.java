@@ -36,7 +36,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import org.junit.jupiter.api.Test;
 
-final class AppendCoordinatorInvariantTest {
+final class AppendCoordinatorTest {
     @Test
     void returnsTheResultAssignedByAtomicStorageCommit() {
         AppendResult assigned = new AppendResult(
