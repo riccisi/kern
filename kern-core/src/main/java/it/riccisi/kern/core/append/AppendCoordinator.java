@@ -6,6 +6,7 @@ import it.riccisi.kern.api.append.AppendResult;
 import it.riccisi.kern.core.storage.EventStorage;
 import it.riccisi.kern.core.storage.PreparedAppend;
 import java.time.Clock;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -32,15 +33,15 @@ public final class AppendCoordinator implements EventStore {
     public CompletionStage<AppendResult> append(final AppendRequest request) {
         Objects.requireNonNull(request, "append request must not be null");
         try {
-            return CompletableFuture.completedFuture(new CommittedAppend(
-                storage,
-                new PreparedAppend(
-                    request,
-                    digests.digest(request),
-                    diagnostics.next(),
-                    clock.instant()
-                )
-            ).result());
+            PreparedAppend append = new PreparedAppend(
+                request,
+                digests.digest(request),
+                diagnostics.next(),
+                clock.instant()
+            );
+            return CompletableFuture.completedFuture(
+                storage.commit(List.of(append), request.durability()).results().getFirst()
+            );
         } catch (RuntimeException exception) {
             return CompletableFuture.failedFuture(exception);
         }
