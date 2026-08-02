@@ -1,6 +1,7 @@
 package it.riccisi.kern.api.append;
 
 import it.riccisi.kern.api.value.ConsistencyKey;
+import it.riccisi.kern.api.value.ConsistencyRevision;
 import it.riccisi.kern.api.value.Position;
 import it.riccisi.kern.api.value.Subject;
 import it.riccisi.kern.api.value.SubjectRevision;
@@ -11,7 +12,7 @@ public record AppendResult(
     Position fromPosition,
     Position toPosition,
     Map<Subject, SubjectRevision> subjectRevisions,
-    Map<ConsistencyKey, Long> consistencyRevisions,
+    Map<ConsistencyKey, ConsistencyRevision> consistencyRevisions,
     boolean replayedFromIdempotency
 ) {
     public AppendResult {
@@ -24,10 +25,5 @@ public record AppendResult(
         consistencyRevisions = Map.copyOf(
             Objects.requireNonNull(consistencyRevisions, "consistency revisions must not be null")
         );
-        for (Long revision : consistencyRevisions.values()) {
-            if (revision < 0) {
-                throw new IllegalArgumentException("consistency revision must not be negative");
-            }
-        }
     }
 }

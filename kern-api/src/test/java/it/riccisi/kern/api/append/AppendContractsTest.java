@@ -18,6 +18,7 @@ import it.riccisi.kern.api.value.Position;
 import it.riccisi.kern.api.value.SchemaReference;
 import it.riccisi.kern.api.value.Subject;
 import it.riccisi.kern.api.value.SubjectRevision;
+import it.riccisi.kern.api.value.ConsistencyRevision;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -133,7 +134,7 @@ final class AppendContractsTest {
 
     @Test
     void rejectsNegativeConsistencyExpectation() {
-        assertThatThrownBy(() -> new ExpectedConsistency(Map.of(new ConsistencyKey("course:C1"), -1L)))
+        assertThatThrownBy(() -> new ConsistencyRevision(-1))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("consistency revision must not be negative");
     }
@@ -147,14 +148,14 @@ final class AppendContractsTest {
             }
 
             @Override
-            public long consistencyRevision(final ConsistencyKey key) {
-                return 11L;
+            public ConsistencyRevision consistencyRevision(final ConsistencyKey key) {
+                return new ConsistencyRevision(11);
             }
         };
 
         new ExpectedSubjectRevision(new Subject("course:C1"), new SubjectRevision(7))
             .verify(revisions, "diag-17");
-        new ExpectedConsistency(Map.of(new ConsistencyKey("course:C1"), 11L))
+        new ExpectedConsistency(Map.of(new ConsistencyKey("course:C1"), new ConsistencyRevision(11)))
             .verify(revisions, "diag-17");
     }
 
@@ -167,12 +168,15 @@ final class AppendContractsTest {
             }
 
             @Override
-            public long consistencyRevision(final ConsistencyKey key) {
-                return 12L;
+            public ConsistencyRevision consistencyRevision(final ConsistencyKey key) {
+                return new ConsistencyRevision(12);
             }
         };
 
-        assertThatThrownBy(() -> new ExpectedConsistency(Map.of(new ConsistencyKey("course:C1"), 11L))
+        assertThatThrownBy(() -> new ExpectedConsistency(Map.of(
+            new ConsistencyKey("course:C1"),
+            new ConsistencyRevision(11)
+        ))
             .verify(revisions, "diag-17"))
             .isInstanceOf(ConsistencyConflict.class)
             .hasMessage("consistency key revision does not match expected revision");
@@ -187,8 +191,8 @@ final class AppendContractsTest {
             }
 
             @Override
-            public long consistencyRevision(final ConsistencyKey key) {
-                return 0L;
+            public ConsistencyRevision consistencyRevision(final ConsistencyKey key) {
+                return new ConsistencyRevision(0);
             }
         };
 
@@ -234,7 +238,7 @@ final class AppendContractsTest {
             new Position(101),
             new Position(101),
             Map.of(new Subject("course:C1"), new SubjectRevision(8)),
-            Map.of(new ConsistencyKey("course:C1"), 12L),
+            Map.of(new ConsistencyKey("course:C1"), new ConsistencyRevision(12)),
             false
         );
         EventStore store = request -> CompletableFuture.completedFuture(result);
@@ -247,8 +251,8 @@ final class AppendContractsTest {
         EventStoreException failure = new ConsistencyConflict(
             "diag-20260729-17",
             new ConsistencyKey("course:C1"),
-            41,
-            42
+            new ConsistencyRevision(41),
+            new ConsistencyRevision(42)
         );
 
         assertThat(failure.diagnosticId()).isEqualTo("diag-20260729-17");
@@ -259,7 +263,7 @@ final class AppendContractsTest {
             new Namespace("education"),
             new IdempotencyKey("append-course-c1-confirmed"),
             List.of(enrollmentConfirmed()),
-            new ExpectedConsistency(Map.of(new ConsistencyKey("course:C1"), 11L)),
+            new ExpectedConsistency(Map.of(new ConsistencyKey("course:C1"), new ConsistencyRevision(11))),
             Set.of(new ConsistencyKey("course:C1")),
             Durability.DURABLE
         );

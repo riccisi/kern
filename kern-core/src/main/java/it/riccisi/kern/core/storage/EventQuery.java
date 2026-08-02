@@ -7,6 +7,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+/**
+ * Read criteria for a page of stored events.
+ */
 public record EventQuery(
     Namespace namespace,
     SubjectFilter subject,
@@ -26,5 +29,13 @@ public record EventQuery(
             throw new IllegalArgumentException("limit must be positive");
         }
         Objects.requireNonNull(direction, "direction must not be null");
+    }
+
+    public boolean accepts(final StoredEvent event) {
+        Objects.requireNonNull(event, "stored event must not be null");
+        return namespace.equals(event.namespace())
+            && subject.accepts(event.data().subject())
+            && (types.isEmpty() || types.contains(event.data().type()))
+            && event.data().tags().entrySet().containsAll(exactTags.entrySet());
     }
 }
