@@ -108,7 +108,7 @@ final class EventStoreInvariantSuiteTest {
                 "concurrency",
                 Status.PENDING,
                 "Query conditional append invariant test",
-                "https://github.com/riccisi/kern/issues/23"
+                "https://github.com/riccisi/kern/issues/17"
             ),
             new Invariant(
                 "rebuilt-indexes-are-query-equivalent",
