@@ -60,3 +60,13 @@ the event store runtime:
 - `it.riccisi.kern.core.storage`: storage SPI, prepared append model, read
   snapshots, revision reads, event pages, high watermark, diagnostics, storage
   flush, and lifecycle contracts
+
+## Why Kern
+
+In German, Kern means core, heart, or essence.
+
+Events are the immutable core of an event-sourced system: the authoritative source from which state is rebuilt and its history can be observed, verified, and understood.
+
+The name also evokes the computing concept of a kernel and, phonetically, a cairn: a stone left along a path as a permanent marker.
+
+Kern — the immutable core of your system.

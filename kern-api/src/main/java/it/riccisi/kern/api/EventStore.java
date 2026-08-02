@@ -5,5 +5,6 @@ import it.riccisi.kern.api.append.AppendResult;
 import java.util.concurrent.CompletionStage;
 
 public interface EventStore {
+
     CompletionStage<AppendResult> append(AppendRequest request);
 }

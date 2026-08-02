@@ -10,6 +10,7 @@ import java.util.Optional;
  * operation that acquired it.
  */
 public interface ReadSnapshot extends AutoCloseable {
+
     EventPage read(EventQuery query);
 
     Revisions revisions(RevisionQuery query);

@@ -1,6 +1,7 @@
 package it.riccisi.kern.api.value;
 
 public record SubjectRevision(long value) {
+
     public SubjectRevision {
         if (value < 0) {
             throw new IllegalArgumentException("subject revision must not be negative");
