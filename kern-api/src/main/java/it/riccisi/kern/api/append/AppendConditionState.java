@@ -1,6 +1,7 @@
 package it.riccisi.kern.api.append;
 
 import it.riccisi.kern.api.value.ConsistencyKey;
+import it.riccisi.kern.api.value.ConsistencyRevision;
 import it.riccisi.kern.api.value.Subject;
 import it.riccisi.kern.api.value.SubjectRevision;
 
@@ -10,5 +11,5 @@ import it.riccisi.kern.api.value.SubjectRevision;
 public interface AppendConditionState {
     SubjectRevision subjectRevision(Subject subject);
 
-    long consistencyRevision(ConsistencyKey key);
+    ConsistencyRevision consistencyRevision(ConsistencyKey key);
 }

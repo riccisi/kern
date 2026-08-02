@@ -197,6 +197,18 @@ final class PublicValueModelTest {
     }
 
     @Test
+    void acceptsZeroConsistencyRevisionAsEmptyKey() {
+        assertThat(new ConsistencyRevision(0).value()).isZero();
+    }
+
+    @Test
+    void rejectsNegativeConsistencyRevision() {
+        assertThatThrownBy(() -> new ConsistencyRevision(-1))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("consistency revision must not be negative");
+    }
+
+    @Test
     void preservesEqualityByWrappedValue() {
         assertThat(new ConsistencyKey("course:C1")).isEqualTo(new ConsistencyKey("course:C1"));
     }

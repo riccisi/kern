@@ -9,6 +9,7 @@ import it.riccisi.kern.api.append.AppendResult;
 import it.riccisi.kern.api.append.Durability;
 import it.riccisi.kern.api.append.EventData;
 import it.riccisi.kern.api.value.ConsistencyKey;
+import it.riccisi.kern.api.value.ConsistencyRevision;
 import it.riccisi.kern.api.value.ContentType;
 import it.riccisi.kern.api.value.EventId;
 import it.riccisi.kern.api.value.EventType;
@@ -36,7 +37,7 @@ final class EventStorageContractTest {
             new Position(11),
             new Position(11),
             Map.of(new Subject("course:C1"), new SubjectRevision(4)),
-            Map.of(new ConsistencyKey("course:C1"), 9L),
+            Map.of(new ConsistencyKey("course:C1"), new ConsistencyRevision(9)),
             false
         );
         FakeStorage storage = new FakeStorage(result);
@@ -105,6 +106,27 @@ final class EventStorageContractTest {
     }
 
     @Test
+    void letsEventQueryDecideWhetherAStoredEventMatches() {
+        EventQuery query = new EventQuery(
+            new Namespace("education"),
+            new SingleSubject(new Subject("course:C1")),
+            Set.of(new EventType("EnrollmentConfirmed.v1")),
+            Map.of("source", "registration"),
+            new Position(0),
+            25,
+            Direction.FORWARD
+        );
+
+        assertThat(query.accepts(new StoredEvent(
+            new Namespace("education"),
+            new Position(17),
+            new SubjectRevision(4),
+            enrollmentConfirmed(),
+            Instant.parse("2026-07-29T13:00:00Z")
+        ))).isTrue();
+    }
+
+    @Test
     void rejectsInvalidStorageValuesEarly() {
         assertThatThrownBy(() -> new CommitOutcome(List.of(), new Position(0)))
             .isInstanceOf(IllegalArgumentException.class)
@@ -122,11 +144,7 @@ final class EventStorageContractTest {
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("limit must be positive");
 
-        assertThatThrownBy(() -> new Revisions(
-            Map.of(),
-            Map.of(new ConsistencyKey("course:C1"), -1L),
-            new Position(0)
-        ))
+        assertThatThrownBy(() -> new ConsistencyRevision(-1))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("consistency revision must not be negative");
     }
@@ -169,7 +187,7 @@ final class EventStorageContractTest {
             new Position(17),
             new Position(17),
             Map.of(new Subject("course:C1"), new SubjectRevision(4)),
-            Map.of(new ConsistencyKey("course:C1"), 9L),
+            Map.of(new ConsistencyKey("course:C1"), new ConsistencyRevision(9)),
             false
         );
     }
@@ -237,7 +255,7 @@ final class EventStorageContractTest {
         public Revisions revisions(RevisionQuery query) {
             return new Revisions(
                 Map.of(new Subject("course:C1"), new SubjectRevision(4)),
-                Map.of(new ConsistencyKey("course:C1"), 9L),
+                Map.of(new ConsistencyKey("course:C1"), new ConsistencyRevision(9)),
                 this.highWatermark
             );
         }

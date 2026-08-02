@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import it.riccisi.kern.api.append.AppendResult;
 import it.riccisi.kern.api.value.ConsistencyKey;
+import it.riccisi.kern.api.value.ConsistencyRevision;
 import it.riccisi.kern.api.value.Position;
 import it.riccisi.kern.api.value.Subject;
 import it.riccisi.kern.api.value.SubjectRevision;
@@ -85,7 +86,7 @@ final class CommitOutcomeInvariantTest {
             new Position(from),
             new Position(to),
             Map.of(new Subject("course:C1"), new SubjectRevision(to - 37)),
-            Map.of(new ConsistencyKey("course:C1"), to + 11),
+            Map.of(new ConsistencyKey("course:C1"), new ConsistencyRevision(to + 11)),
             false
         );
     }

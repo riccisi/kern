@@ -1,35 +1,35 @@
 package it.riccisi.kern.api.error;
 
 import it.riccisi.kern.api.value.ConsistencyKey;
+import it.riccisi.kern.api.value.ConsistencyRevision;
 import java.util.Objects;
 
 public final class ConsistencyConflict extends EventStoreException {
     private final ConsistencyKey key;
-    private final long expected;
-    private final long actual;
+    private final ConsistencyRevision expected;
+    private final ConsistencyRevision actual;
 
-    public ConsistencyConflict(String diagnosticId, ConsistencyKey key, long expected, long actual) {
+    public ConsistencyConflict(
+        String diagnosticId,
+        ConsistencyKey key,
+        ConsistencyRevision expected,
+        ConsistencyRevision actual
+    ) {
         super(diagnosticId, "consistency key revision does not match expected revision");
         this.key = Objects.requireNonNull(key, "consistency key must not be null");
-        if (expected < 0) {
-            throw new IllegalArgumentException("expected revision must not be negative");
-        }
-        if (actual < 0) {
-            throw new IllegalArgumentException("actual revision must not be negative");
-        }
-        this.expected = expected;
-        this.actual = actual;
+        this.expected = Objects.requireNonNull(expected, "expected revision must not be null");
+        this.actual = Objects.requireNonNull(actual, "actual revision must not be null");
     }
 
     public ConsistencyKey key() {
         return key;
     }
 
-    public long expected() {
+    public ConsistencyRevision expected() {
         return expected;
     }
 
-    public long actual() {
+    public ConsistencyRevision actual() {
         return actual;
     }
 }
