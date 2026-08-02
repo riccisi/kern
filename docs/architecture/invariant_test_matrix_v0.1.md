@@ -1,5 +1,9 @@
 # Invariant Test Matrix v0.1
 
+> Status: Superseded by `kern_event_store_specification_v0.2.pdf`.
+> This matrix is historical. Current invariant work must follow the v0.2
+> query-based DCB model.
+
 Issue: [KERN-007](https://github.com/riccisi/kern/issues/7)
 
 This matrix turns the release invariants from the technical specification into

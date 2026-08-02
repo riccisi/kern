@@ -2,7 +2,7 @@ package it.riccisi.kern.rocksdb;
 
 import it.riccisi.kern.api.value.EventId;
 import it.riccisi.kern.api.value.Namespace;
-import it.riccisi.kern.api.value.Position;
+import it.riccisi.kern.api.value.SequencePosition;
 import it.riccisi.kern.core.storage.StoredEvent;
 import it.riccisi.kern.rocksdb.binary.LongBytes;
 import it.riccisi.kern.rocksdb.binary.LongFromBytes;
@@ -27,7 +27,7 @@ final class EventIds {
 
     Optional<StoredEvent> event(final Namespace namespace, final EventId id) {
         return reader.bytes(RocksColumn.EVENT_IDS, new EventIdKey(namespace, id))
-            .map(bytes -> new Position(new LongFromBytes(bytes).value()))
+            .map(bytes -> new SequencePosition(new LongFromBytes(bytes).value()))
             .flatMap(position -> records.at(namespace, position));
     }
 }

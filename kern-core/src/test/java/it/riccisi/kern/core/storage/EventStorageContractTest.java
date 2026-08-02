@@ -3,22 +3,22 @@ package it.riccisi.kern.core.storage;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import it.riccisi.kern.api.append.AnyAppend;
+import it.riccisi.kern.api.append.AppendCondition;
 import it.riccisi.kern.api.append.AppendRequest;
 import it.riccisi.kern.api.append.AppendResult;
 import it.riccisi.kern.api.append.Durability;
-import it.riccisi.kern.api.append.EventData;
-import it.riccisi.kern.api.value.ConsistencyKey;
-import it.riccisi.kern.api.value.ConsistencyRevision;
+import it.riccisi.kern.api.event.EventData;
+import it.riccisi.kern.api.query.EventQuery;
+import it.riccisi.kern.api.query.QueryItem;
+import it.riccisi.kern.api.query.QueryResult;
+import it.riccisi.kern.api.query.ReadRequest;
 import it.riccisi.kern.api.value.ContentType;
 import it.riccisi.kern.api.value.EventId;
+import it.riccisi.kern.api.value.EventTag;
 import it.riccisi.kern.api.value.EventType;
 import it.riccisi.kern.api.value.IdempotencyKey;
 import it.riccisi.kern.api.value.Namespace;
-import it.riccisi.kern.api.value.Position;
-import it.riccisi.kern.api.value.SchemaReference;
-import it.riccisi.kern.api.value.Subject;
-import it.riccisi.kern.api.value.SubjectRevision;
+import it.riccisi.kern.api.value.SequencePosition;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -33,13 +33,7 @@ import org.junit.jupiter.api.Test;
 final class EventStorageContractTest {
     @Test
     void commitsPreparedAppendBatchThroughStorageBoundary() {
-        AppendResult result = new AppendResult(
-            new Position(11),
-            new Position(11),
-            Map.of(new Subject("course:C1"), new SubjectRevision(4)),
-            Map.of(new ConsistencyKey("course:C1"), new ConsistencyRevision(9)),
-            false
-        );
+        AppendResult result = new AppendResult(new SequencePosition(11), new SequencePosition(11), false);
         FakeStorage storage = new FakeStorage(result);
         PreparedAppend append = preparedAppend();
 
@@ -47,25 +41,7 @@ final class EventStorageContractTest {
 
         assertThat(storage.committed()).containsExactly(append);
         assertThat(outcome.results()).containsExactly(result);
-        assertThat(outcome.highWatermark()).isEqualTo(new Position(11));
-    }
-
-    @Test
-    void callerOwnsReadSnapshotLifecycle() {
-        FakeStorage storage = new FakeStorage(appendResult());
-        TrackingSnapshot snapshot = storage.snapshot();
-
-        try (snapshot) {
-            snapshot.revisions(
-                new RevisionQuery(
-                    new Namespace("education"),
-                    Set.of(new Subject("course:C1")),
-                    Set.of(new ConsistencyKey("course:C1"))
-                )
-            );
-        }
-
-        assertThat(snapshot.closed()).isTrue();
+        assertThat(outcome.highWatermark()).isEqualTo(new SequencePosition(11));
     }
 
     @Test
@@ -73,10 +49,8 @@ final class EventStorageContractTest {
         byte[] digest = "digest-17".getBytes(StandardCharsets.UTF_8);
         List<AppendResult> results = new ArrayList<>();
         results.add(appendResult());
-        Set<EventType> types = new HashSet<>();
-        types.add(new EventType("EnrollmentConfirmed.v1"));
-        Map<String, String> tags = new java.util.HashMap<>();
-        tags.put("source", "registration");
+        Set<QueryItem> items = new HashSet<>();
+        items.add(new QueryItem(Set.of(new EventType("EnrollmentConfirmed.v1")), Set.of(new EventTag("course", "C1"))));
 
         PreparedAppend append = new PreparedAppend(
             validAppendRequest(),
@@ -84,69 +58,32 @@ final class EventStorageContractTest {
             "diag-17",
             Instant.parse("2026-07-29T13:00:00Z")
         );
-        CommitOutcome outcome = new CommitOutcome(results, new Position(17));
-        EventQuery query = new EventQuery(
-            new Namespace("education"),
-            new SingleSubject(new Subject("course:C1")),
-            types,
-            tags,
-            new Position(16),
-            25,
-            Direction.FORWARD
-        );
+        CommitOutcome outcome = new CommitOutcome(results, new SequencePosition(17));
+        EventQuery query = new EventQuery(new ArrayList<>(items));
         digest[0] = 'X';
         results.clear();
-        types.clear();
-        tags.clear();
+        items.clear();
 
         assertThat(append.digest().bytes()).startsWith((byte) 'd');
         assertThat(outcome.results()).hasSize(1);
-        assertThat(query.types()).containsExactly(new EventType("EnrollmentConfirmed.v1"));
-        assertThat(query.exactTags()).containsEntry("source", "registration");
-    }
-
-    @Test
-    void letsEventQueryDecideWhetherAStoredEventMatches() {
-        EventQuery query = new EventQuery(
-            new Namespace("education"),
-            new SingleSubject(new Subject("course:C1")),
-            Set.of(new EventType("EnrollmentConfirmed.v1")),
-            Map.of("source", "registration"),
-            new Position(0),
-            25,
-            Direction.FORWARD
-        );
-
-        assertThat(query.accepts(new StoredEvent(
-            new Namespace("education"),
-            new Position(17),
-            new SubjectRevision(4),
-            enrollmentConfirmed(),
-            Instant.parse("2026-07-29T13:00:00Z")
-        ))).isTrue();
+        assertThat(query.items()).hasSize(1);
     }
 
     @Test
     void rejectsInvalidStorageValuesEarly() {
-        assertThatThrownBy(() -> new CommitOutcome(List.of(), new Position(0)))
+        assertThatThrownBy(() -> new CommitOutcome(List.of(), new SequencePosition(0)))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("append results must not be empty");
 
-        assertThatThrownBy(() -> new EventQuery(
+        assertThatThrownBy(() -> new ReadRequest(
             new Namespace("education"),
-            new AllSubjects(),
-            Set.of(),
-            Map.of(),
-            new Position(0),
+            new EventQuery(List.of()),
+            new SequencePosition(0),
             0,
-            Direction.FORWARD
+            Optional.empty()
         ))
             .isInstanceOf(IllegalArgumentException.class)
-            .hasMessage("limit must be positive");
-
-        assertThatThrownBy(() -> new ConsistencyRevision(-1))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessage("consistency revision must not be negative");
+            .hasMessage("read limit must be positive");
     }
 
     private static PreparedAppend preparedAppend() {
@@ -161,11 +98,9 @@ final class EventStorageContractTest {
     private static AppendRequest validAppendRequest() {
         return new AppendRequest(
             new Namespace("education"),
-            new IdempotencyKey("append-course-c1-20260729"),
             List.of(enrollmentConfirmed()),
-            new AnyAppend(),
-            Set.of(new ConsistencyKey("course:C1")),
-            Durability.DURABLE
+            new AppendCondition(new EventQuery(List.of()), new SequencePosition(0)),
+            new IdempotencyKey("append-course-c1-20260729")
         );
     }
 
@@ -173,36 +108,28 @@ final class EventStorageContractTest {
         return new EventData(
             new EventId(UUID.fromString("01890f70-7c6a-7d0b-9d01-86de05a9f4b1")),
             new EventType("EnrollmentConfirmed.v1"),
-            new Subject("course:C1"),
+            Set.of(new EventTag("course", "C1")),
             new ContentType("application/json"),
-            new SchemaReference("schema://education/enrollment-confirmed/1"),
             "{\"student\":\"S1\"}".getBytes(StandardCharsets.UTF_8),
-            "{\"trace\":\"t-17\"}".getBytes(StandardCharsets.UTF_8),
-            Map.of("source", "registration")
+            "{\"trace\":\"t-17\"}".getBytes(StandardCharsets.UTF_8)
         );
     }
 
     private static AppendResult appendResult() {
-        return new AppendResult(
-            new Position(17),
-            new Position(17),
-            Map.of(new Subject("course:C1"), new SubjectRevision(4)),
-            Map.of(new ConsistencyKey("course:C1"), new ConsistencyRevision(9)),
-            false
-        );
+        return new AppendResult(new SequencePosition(17), new SequencePosition(17), false);
     }
 
     private static final class FakeStorage implements EventStorage {
         private final AppendResult result;
         private final List<PreparedAppend> committed;
 
-        FakeStorage(AppendResult result) {
+        FakeStorage(final AppendResult result) {
             this.result = result;
             this.committed = new ArrayList<>();
         }
 
         @Override
-        public CommitOutcome commit(Iterable<PreparedAppend> appends, Durability durability) {
+        public CommitOutcome commit(final Iterable<PreparedAppend> appends, final Durability durability) {
             for (PreparedAppend append : appends) {
                 this.committed.add(append);
             }
@@ -210,17 +137,17 @@ final class EventStorageContractTest {
         }
 
         @Override
-        public TrackingSnapshot snapshot() {
-            return new TrackingSnapshot(new Position(17));
+        public ReadSnapshot snapshot() {
+            throw new UnsupportedOperationException("not used");
         }
 
         @Override
         public StorageDiagnostics diagnostics() {
-            return new StorageDiagnostics("fake", new Position(17), true, Map.of("write-buffer", "open"));
+            return new StorageDiagnostics("fake", new SequencePosition(17), true, Map.of("write-buffer", "open"));
         }
 
         @Override
-        public void flush(FlushMode mode) {
+        public void flush(final FlushMode mode) {
         }
 
         @Override
@@ -228,50 +155,7 @@ final class EventStorageContractTest {
         }
 
         List<PreparedAppend> committed() {
-            return List.copyOf(this.committed);
-        }
-    }
-
-    private static final class TrackingSnapshot implements ReadSnapshot {
-        private final Position highWatermark;
-        private boolean closed;
-
-        TrackingSnapshot(Position highWatermark) {
-            this.highWatermark = highWatermark;
-            this.closed = false;
-        }
-
-        @Override
-        public Position highWatermark() {
-            return this.highWatermark;
-        }
-
-        @Override
-        public EventPage read(EventQuery query) {
-            return new EventPage(List.of(), Optional.empty(), this.highWatermark);
-        }
-
-        @Override
-        public Revisions revisions(RevisionQuery query) {
-            return new Revisions(
-                Map.of(new Subject("course:C1"), new SubjectRevision(4)),
-                Map.of(new ConsistencyKey("course:C1"), new ConsistencyRevision(9)),
-                this.highWatermark
-            );
-        }
-
-        @Override
-        public Optional<StoredEvent> eventById(Namespace namespace, EventId id) {
-            return Optional.empty();
-        }
-
-        @Override
-        public void close() {
-            this.closed = true;
-        }
-
-        boolean closed() {
-            return this.closed;
+            return List.copyOf(committed);
         }
     }
 }

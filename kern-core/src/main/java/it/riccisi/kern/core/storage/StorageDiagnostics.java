@@ -1,12 +1,12 @@
 package it.riccisi.kern.core.storage;
 
-import it.riccisi.kern.api.value.Position;
+import it.riccisi.kern.api.value.SequencePosition;
 import java.util.Map;
 import java.util.Objects;
 
 public record StorageDiagnostics(
     String engine,
-    Position highWatermark,
+    SequencePosition highWatermark,
     boolean writable,
     Map<String, String> properties
 ) {

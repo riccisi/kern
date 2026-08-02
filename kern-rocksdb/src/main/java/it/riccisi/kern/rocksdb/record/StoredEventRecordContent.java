@@ -16,14 +16,11 @@ final class StoredEventRecordContent extends BytesEnvelope {
             new JoinedBytes(
                 EventRecordFormat.V1,
                 new LongBytes(Objects.requireNonNull(event, "stored event must not be null").position().value()),
-                new LongBytes(event.subjectRevision().value()),
                 new TimestampMicros(event.recordedAt()),
                 new UuidBytes(event.data().id().value()),
                 new TextBytes(event.namespace().value()),
                 new TextBytes(event.data().type().value()),
-                new TextBytes(event.data().subject().value()),
                 new TextBytes(event.data().contentType().value()),
-                new TextBytes(event.data().schema().value()),
                 new EventRecordTags(event.data().tags()),
                 new BinaryFieldBytes(event.data().metadata()),
                 new BinaryFieldBytes(event.data().payload())

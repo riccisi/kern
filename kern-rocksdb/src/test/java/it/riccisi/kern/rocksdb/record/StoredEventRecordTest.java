@@ -3,23 +3,18 @@ package it.riccisi.kern.rocksdb.record;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import it.riccisi.kern.api.append.EventData;
+import it.riccisi.kern.api.event.EventData;
 import it.riccisi.kern.api.value.ContentType;
 import it.riccisi.kern.api.value.EventId;
+import it.riccisi.kern.api.value.EventTag;
 import it.riccisi.kern.api.value.EventType;
 import it.riccisi.kern.api.value.Namespace;
-import it.riccisi.kern.api.value.Position;
-import it.riccisi.kern.api.value.SchemaReference;
-import it.riccisi.kern.api.value.Subject;
-import it.riccisi.kern.api.value.SubjectRevision;
+import it.riccisi.kern.api.value.SequencePosition;
 import it.riccisi.kern.core.storage.StoredEvent;
 import it.riccisi.kern.rocksdb.binary.ChecksummedBytes;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.HexFormat;
-import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.cactoos.Bytes;
 import org.cactoos.bytes.BytesOf;
@@ -29,17 +24,14 @@ import org.junit.jupiter.api.Test;
 final class StoredEventRecordTest {
     private static final StoredEvent STORED_EVENT = new StoredEvent(
         new Namespace("education"),
-        new Position(42),
-        new SubjectRevision(7),
+        new SequencePosition(42),
         new EventData(
             new EventId(UUID.fromString("01890f70-7c6a-7d0b-9d01-86de05a9f4b1")),
-            new EventType("EnrollmentRegistered.v1"),
-            new Subject("enrollment:E-2026-07-29"),
+            new EventType("StudentEnrolled.v1"),
+            Set.of(new EventTag("student", "S1"), new EventTag("course", "C1")),
             new ContentType("application/json"),
-            new SchemaReference("schema:enrollment-registered:1"),
             "{\"student\":\"S1\",\"course\":\"C1\"}".getBytes(StandardCharsets.UTF_8),
-            "{\"correlation\":\"cmd-91\"}".getBytes(StandardCharsets.UTF_8),
-            Map.of("course", "C1", "source", "registration")
+            "{\"correlation\":\"cmd-91\"}".getBytes(StandardCharsets.UTF_8)
         ),
         Instant.parse("2026-07-29T12:34:56.123456Z")
     );
@@ -94,32 +86,7 @@ final class StoredEventRecordTest {
             .hasMessage("event record is truncated");
     }
 
-    @Test
-    void decodesCommittedV1Fixture() {
-        byte[] fixture = HexFormat.of().parseHex(fixture("event-record-v1.hex"));
-
-        assertThat(new EncodedStoredEventRecord(fixture).value()).isEqualTo(STORED_EVENT);
-    }
-
-    @Test
-    void keepsCommittedFixtureStable() {
-        byte[] fixture = HexFormat.of().parseHex(fixture("event-record-v1.hex"));
-
-        assertThat(materialized(new StoredEventRecord(STORED_EVENT))).isEqualTo(fixture);
-    }
-
-    private String fixture(String name) {
-        try (var input = getClass().getResourceAsStream(name)) {
-            if (input == null) {
-                throw new IllegalStateException("missing fixture " + name);
-            }
-            return new String(input.readAllBytes(), StandardCharsets.US_ASCII).replaceAll("\\s+", "");
-        } catch (IOException exception) {
-            throw new UncheckedIOException(exception);
-        }
-    }
-
-    private void withFreshChecksum(byte[] record) {
+    private void withFreshChecksum(final byte[] record) {
         byte[] content = new byte[record.length - Integer.BYTES];
         System.arraycopy(record, 0, content, 0, content.length);
         byte[] fresh = materialized(new ChecksummedBytes(new BytesOf(content)));

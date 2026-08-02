@@ -3,56 +3,48 @@ package it.riccisi.kern.rocksdb;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import it.riccisi.kern.api.append.AnyAppend;
 import it.riccisi.kern.api.append.AppendCondition;
 import it.riccisi.kern.api.append.AppendRequest;
 import it.riccisi.kern.api.append.Durability;
-import it.riccisi.kern.api.append.EventData;
-import it.riccisi.kern.api.append.ExpectedConsistency;
-import it.riccisi.kern.api.append.ExpectedSubjectRevision;
-import it.riccisi.kern.api.error.SubjectRevisionConflict;
+import it.riccisi.kern.api.error.QueryConflict;
+import it.riccisi.kern.api.event.EventData;
+import it.riccisi.kern.api.query.EventQuery;
+import it.riccisi.kern.api.query.QueryItem;
+import it.riccisi.kern.api.query.QueryResult;
+import it.riccisi.kern.api.query.ReadRequest;
 import it.riccisi.kern.api.value.ContentType;
-import it.riccisi.kern.api.value.ConsistencyKey;
-import it.riccisi.kern.api.value.ConsistencyRevision;
 import it.riccisi.kern.api.value.EventId;
+import it.riccisi.kern.api.value.EventTag;
 import it.riccisi.kern.api.value.EventType;
 import it.riccisi.kern.api.value.IdempotencyKey;
 import it.riccisi.kern.api.value.Namespace;
-import it.riccisi.kern.api.value.Position;
-import it.riccisi.kern.api.value.SchemaReference;
-import it.riccisi.kern.api.value.Subject;
-import it.riccisi.kern.api.value.SubjectRevision;
-import it.riccisi.kern.core.storage.AllSubjects;
+import it.riccisi.kern.api.value.SequencePosition;
 import it.riccisi.kern.core.storage.CommitOutcome;
-import it.riccisi.kern.core.storage.Direction;
-import it.riccisi.kern.core.storage.EventPage;
-import it.riccisi.kern.core.storage.EventQuery;
 import it.riccisi.kern.core.storage.FlushMode;
 import it.riccisi.kern.core.storage.PreparedAppend;
 import it.riccisi.kern.core.storage.ReadSnapshot;
-import it.riccisi.kern.core.storage.Revisions;
-import it.riccisi.kern.core.storage.RevisionQuery;
 import it.riccisi.kern.core.storage.RequestDigest;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.rocksdb.Options;
 import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 final class RocksEventStorageTest {
+    private static final EventType STUDENT_ENROLLED = new EventType("StudentEnrolled.v1");
+    private static final EventType STUDENT_ADDRESS_CHANGED = new EventType("StudentAddressChanged.v1");
+    private static final EventTag STUDENT = new EventTag("student", "S1");
+    private static final EventTag OTHER_STUDENT = new EventTag("student", "S2");
+    private static final EventTag COURSE = new EventTag("course", "C1");
 
     @Test
     void reopensAnEmptyStorage(@TempDir final Path directory) {
@@ -76,252 +68,186 @@ final class RocksEventStorageTest {
                 .containsExactlyInAnyOrder(
                     "default",
                     "events",
-                    "subject-revisions",
-                    "event-ids",
-                    "types",
-                    "tags",
-                    "subject-heads",
-                    "consistency",
+                    "event_ids",
+                    "tag_type_index",
+                    "type_index",
+                    "tag_index",
                     "idempotency",
-                    "system"
+                    "metadata",
+                    "diagnostics"
                 );
         }
     }
 
     @Test
-    void commitsMultipleAppendsAtomically(@TempDir final Path directory) {
+    void commitsOneLogicalRequestAtomically(@TempDir final Path directory) {
         Namespace namespace = new Namespace("tenant-alpha");
-        Subject subject = new Subject("invoice-7841");
         try (RocksEventStorage storage = new RocksEventStorage(directory)) {
             CommitOutcome outcome = storage.commit(
-                List.of(
-                    prepared(namespace, subject, "issued", "request-issue"),
-                    prepared(namespace, subject, "paid", "request-paid")
-                ),
+                List.of(prepared(
+                    namespace,
+                    List.of(
+                        event("issued", new EventType("InvoiceIssued.v1"), new EventTag("invoice", "7841")),
+                        event("paid", new EventType("InvoicePaid.v1"), new EventTag("invoice", "7841"))
+                    ),
+                    condition(new EventQuery(List.of()), new SequencePosition(0))
+                )),
                 Durability.DURABLE
             );
 
-            assertThat(outcome)
-                .satisfies(result -> assertThat(result.results()).hasSize(2))
-                .satisfies(result -> assertThat(result.results().getFirst().fromPosition().value()).isEqualTo(1L))
-                .satisfies(result -> assertThat(result.results().getFirst().toPosition().value()).isEqualTo(1L))
-                .satisfies(result -> assertThat(result.results().getFirst().subjectRevisions().get(subject).value()).isEqualTo(1L))
-                .satisfies(result -> assertThat(result.results().get(1).fromPosition().value()).isEqualTo(2L))
-                .satisfies(result -> assertThat(result.results().get(1).toPosition().value()).isEqualTo(2L))
-                .satisfies(result -> assertThat(result.results().get(1).subjectRevisions().get(subject).value()).isEqualTo(2L))
-                .satisfies(result -> assertThat(result.highWatermark().value()).isEqualTo(2L));
+            assertThat(outcome.onlyResult().fromPosition()).isEqualTo(new SequencePosition(1));
+            assertThat(outcome.onlyResult().toPosition()).isEqualTo(new SequencePosition(2));
+            assertThat(outcome.highWatermark()).isEqualTo(new SequencePosition(2));
         }
         try (RocksEventStorage reopened = new RocksEventStorage(directory)) {
-            assertThat(reopened.diagnostics().highWatermark().value()).isEqualTo(2L);
+            assertThat(reopened.diagnostics().highWatermark()).isEqualTo(new SequencePosition(2));
+        }
+    }
+
+    @Test
+    void rejectsGroupCommitUntilOverlayExists(@TempDir final Path directory) {
+        Namespace namespace = new Namespace("tenant-bravo");
+        try (RocksEventStorage storage = new RocksEventStorage(directory)) {
+            PreparedAppend first = prepared(namespace, List.of(event("one", STUDENT_ENROLLED, STUDENT)), noConflict());
+            PreparedAppend second = prepared(namespace, List.of(event("two", STUDENT_ENROLLED, COURSE)), noConflict());
+
+            assertThatThrownBy(() -> storage.commit(List.of(first, second), Durability.DURABLE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("group commit requires an overlay and is not enabled");
+        }
+    }
+
+    @Test
+    void returnsOneMultiTagEventThroughEveryApplicableQuery(@TempDir final Path directory) {
+        Namespace namespace = new Namespace("tenant-charlie");
+        EventData enrolled = event("enrolled", STUDENT_ENROLLED, STUDENT, COURSE);
+        try (RocksEventStorage storage = new RocksEventStorage(directory)) {
+            storage.commit(List.of(prepared(namespace, List.of(enrolled), noConflict())), Durability.DURABLE);
+
+            try (ReadSnapshot snapshot = storage.snapshot()) {
+                QueryResult byStudent = snapshot.read(read(namespace, query(STUDENT), new SequencePosition(0)));
+                QueryResult byCourse = snapshot.read(read(namespace, query(COURSE), new SequencePosition(0)));
+
+                assertThat(byStudent.events()).singleElement()
+                    .satisfies(event -> assertThat(event.event().id()).isEqualTo(enrolled.id()));
+                assertThat(byCourse.events()).singleElement()
+                    .satisfies(event -> assertThat(event.event().id()).isEqualTo(enrolled.id()));
+                assertThat(snapshot.eventById(namespace, enrolled.id()))
+                    .hasValueSatisfying(event -> assertThat(event.data()).isEqualTo(enrolled));
+            }
+        }
+    }
+
+    @Test
+    void observedAtMayExceedTheLastMatchingPosition(@TempDir final Path directory) {
+        Namespace namespace = new Namespace("tenant-delta");
+        try (RocksEventStorage storage = new RocksEventStorage(directory)) {
+            storage.commit(
+                List.of(prepared(namespace, List.of(event("address", STUDENT_ADDRESS_CHANGED, STUDENT)), noConflict())),
+                Durability.DURABLE
+            );
+
+            try (ReadSnapshot snapshot = storage.snapshot()) {
+                QueryResult result = snapshot.read(read(namespace, query(STUDENT_ENROLLED, STUDENT), new SequencePosition(0)));
+
+                assertThat(result.events()).isEmpty();
+                assertThat(result.observedAt()).isEqualTo(new SequencePosition(1));
+            }
+        }
+    }
+
+    @Test
+    void ignoresLaterEventsThatDoNotMatchTheConditionType(@TempDir final Path directory) {
+        Namespace namespace = new Namespace("tenant-echo");
+        try (RocksEventStorage storage = new RocksEventStorage(directory)) {
+            storage.commit(
+                List.of(prepared(namespace, List.of(event("address", STUDENT_ADDRESS_CHANGED, STUDENT)), noConflict())),
+                Durability.DURABLE
+            );
+
+            CommitOutcome outcome = storage.commit(
+                List.of(prepared(
+                    namespace,
+                    List.of(event("enrolled", STUDENT_ENROLLED, STUDENT, COURSE)),
+                    condition(query(STUDENT_ENROLLED, STUDENT), new SequencePosition(0))
+                )),
+                Durability.DURABLE
+            );
+
+            assertThat(outcome.highWatermark()).isEqualTo(new SequencePosition(2));
+        }
+    }
+
+    @Test
+    void rejectsLaterEventsThatMatchTheCompleteCondition(@TempDir final Path directory) {
+        Namespace namespace = new Namespace("tenant-foxtrot");
+        try (RocksEventStorage storage = new RocksEventStorage(directory)) {
+            storage.commit(
+                List.of(prepared(namespace, List.of(event("s2-enrolled", STUDENT_ENROLLED, OTHER_STUDENT, COURSE)), noConflict())),
+                Durability.DURABLE
+            );
+
+            assertThatThrownBy(() -> storage.commit(
+                List.of(prepared(
+                    namespace,
+                    List.of(event("s1-enrolled", STUDENT_ENROLLED, STUDENT, COURSE)),
+                    condition(query(STUDENT_ENROLLED, COURSE), new SequencePosition(0))
+                )),
+                Durability.DURABLE
+            ))
+                .isInstanceOf(QueryConflict.class)
+                .satisfies(error -> assertThat(((QueryConflict) error).conflictingPosition())
+                    .isEqualTo(new SequencePosition(1)));
         }
     }
 
     @Test
     void flushesCommittedData(@TempDir final Path directory) {
-        Namespace namespace = new Namespace("tenant-echo");
-        Subject subject = new Subject("invoice-4096");
+        Namespace namespace = new Namespace("tenant-golf");
         try (RocksEventStorage storage = new RocksEventStorage(directory)) {
             storage.commit(
-                List.of(prepared(namespace, subject, "issued", "request-issue")),
+                List.of(prepared(namespace, List.of(event("issued", new EventType("InvoiceIssued.v1"), new EventTag("invoice", "4096"))), noConflict())),
                 Durability.RELAXED
             );
             storage.flush(FlushMode.SYNC);
         }
         try (RocksEventStorage reopened = new RocksEventStorage(directory)) {
-            assertThat(reopened.diagnostics().highWatermark().value()).isEqualTo(1L);
+            assertThat(reopened.diagnostics().highWatermark()).isEqualTo(new SequencePosition(1));
         }
     }
 
-    @Test
-    void assignsDistinctPositionsToConcurrentCommits(@TempDir final Path directory) throws Exception {
-        Namespace namespace = new Namespace("tenant-foxtrot");
-        ExecutorService executor = Executors.newFixedThreadPool(2);
-        try (RocksEventStorage storage = new RocksEventStorage(directory)) {
-            List<Callable<Long>> commits = List.of(
-                () -> storage.commit(
-                    List.of(prepared(namespace, new Subject("invoice-1001"), "issued", "request-1001")),
-                    Durability.DURABLE
-                ).onlyResult().fromPosition().value(),
-                () -> storage.commit(
-                    List.of(prepared(namespace, new Subject("invoice-1002"), "issued", "request-1002")),
-                    Durability.DURABLE
-                ).onlyResult().fromPosition().value()
-            );
-
-            List<Future<Long>> positions = executor.invokeAll(commits, 5, TimeUnit.SECONDS);
-
-            assertThat(positions)
-                .allSatisfy(position -> assertThat(position.isCancelled()).isFalse())
-                .extracting(position -> position.get(1, TimeUnit.SECONDS))
-                .containsExactlyInAnyOrder(1L, 2L);
-        } finally {
-            executor.shutdownNow();
-        }
-        try (RocksEventStorage reopened = new RocksEventStorage(directory)) {
-            assertThat(reopened.diagnostics().highWatermark().value()).isEqualTo(2L);
-        }
+    private static ReadRequest read(final Namespace namespace, final EventQuery query, final SequencePosition from) {
+        return new ReadRequest(namespace, query, from, 10, Optional.empty());
     }
 
-    @Test
-    void persistsConsistencyRevisions(@TempDir final Path directory) {
-        Namespace namespace = new Namespace("tenant-charlie");
-        Subject subject = new Subject("invoice-1024");
-        ConsistencyKey key = new ConsistencyKey("customer:881");
-        try (RocksEventStorage storage = new RocksEventStorage(directory)) {
-            CommitOutcome outcome = storage.commit(
-                List.of(prepared(namespace, subject, "issued", "request-issue", new AnyAppend(), Set.of(key))),
-                Durability.DURABLE
-            );
-
-            assertThat(outcome.onlyResult().consistencyRevisions().get(key)).isEqualTo(new ConsistencyRevision(1));
-        }
-        try (RocksEventStorage reopened = new RocksEventStorage(directory)) {
-            CommitOutcome outcome = reopened.commit(
-                List.of(
-                    prepared(
-                        namespace,
-                        subject,
-                        "paid",
-                        "request-paid",
-                        new ExpectedConsistency(Map.of(key, new ConsistencyRevision(1))),
-                        Set.of(key)
-                    )
-                ),
-                Durability.DURABLE
-            );
-
-            assertThat(outcome.onlyResult().consistencyRevisions().get(key)).isEqualTo(new ConsistencyRevision(2));
-        }
+    private static AppendCondition noConflict() {
+        return condition(new EventQuery(List.of()), new SequencePosition(0));
     }
 
-    @Test
-    void exposesCommittedEventsThroughSnapshots(@TempDir final Path directory) {
-        Namespace namespace = new Namespace("tenant-delta");
-        Subject subject = new Subject("invoice-2048");
-        ConsistencyKey key = new ConsistencyKey("customer:314");
-        try (RocksEventStorage storage = new RocksEventStorage(directory)) {
-            storage.commit(
-                List.of(
-                    prepared(namespace, subject, "issued", "request-issue", new AnyAppend(), Set.of(key)),
-                    prepared(namespace, subject, "paid", "request-paid")
-                ),
-                Durability.DURABLE
-            );
-
-            try (ReadSnapshot snapshot = storage.snapshot()) {
-                EventPage page = snapshot.read(new EventQuery(
-                    namespace,
-                    new AllSubjects(),
-                    Set.of(new EventType("invoice.paid")),
-                    Map.of("kind", "paid"),
-                    new Position(0),
-                    10,
-                    Direction.FORWARD
-                ));
-                Revisions revisions = snapshot.revisions(
-                    new RevisionQuery(namespace, Set.of(subject), Set.of(key))
-                );
-
-                assertThat(page.events())
-                    .singleElement()
-                    .satisfies(event -> assertThat(event.position().value()).isEqualTo(2L))
-                    .satisfies(event -> assertThat(snapshot.eventById(namespace, event.data().id())).contains(event));
-                assertThat(revisions.subjectRevision(subject).value()).isEqualTo(2L);
-                assertThat(revisions.consistencyRevision(key)).isEqualTo(new ConsistencyRevision(1));
-                assertThat(snapshot.highWatermark().value()).isEqualTo(2L);
-            }
-        }
+    private static AppendCondition condition(final EventQuery query, final SequencePosition after) {
+        return new AppendCondition(query, after);
     }
 
-    @Test
-    void readsTheLatestEventsFirstWhenScanningBackward(@TempDir final Path directory) {
-        Namespace namespace = new Namespace("tenant-golf");
-        try (RocksEventStorage storage = new RocksEventStorage(directory)) {
-            storage.commit(
-                List.of(
-                    prepared(namespace, new Subject("invoice-3001"), "issued", "request-3001"),
-                    prepared(namespace, new Subject("invoice-3002"), "paid", "request-3002")
-                ),
-                Durability.DURABLE
-            );
-
-            try (ReadSnapshot snapshot = storage.snapshot()) {
-                EventPage page = snapshot.read(new EventQuery(
-                    namespace,
-                    new AllSubjects(),
-                    Set.of(),
-                    Map.of(),
-                    new Position(0),
-                    10,
-                    Direction.BACKWARD
-                ));
-
-                assertThat(page.events())
-                    .extracting(event -> event.position().value())
-                    .containsExactly(2L, 1L);
-            }
-        }
+    private static EventQuery query(final EventTag tag) {
+        return new EventQuery(List.of(new QueryItem(Set.of(), Set.of(tag))));
     }
 
-    @Test
-    void rejectsAConflictingAppendWithoutPersistingTheBatch(@TempDir final Path directory) {
-        Namespace namespace = new Namespace("tenant-bravo");
-        Subject subject = new Subject("invoice-9135");
-        try (RocksEventStorage storage = new RocksEventStorage(directory)) {
-            assertThatThrownBy(() -> storage.commit(
-                List.of(
-                    prepared(namespace, subject, "issued", "request-issue"),
-                    prepared(
-                        namespace,
-                        subject,
-                        "paid",
-                        "request-paid",
-                        new ExpectedSubjectRevision(subject, new SubjectRevision(9))
-                    )
-                ),
-                Durability.DURABLE
-            )).isInstanceOf(SubjectRevisionConflict.class);
-        }
-        try (RocksEventStorage reopened = new RocksEventStorage(directory)) {
-            assertThat(reopened.diagnostics().highWatermark().value()).isZero();
-        }
+    private static EventQuery query(final EventType type, final EventTag tag) {
+        return new EventQuery(List.of(new QueryItem(Set.of(type), Set.of(tag))));
     }
 
     private static PreparedAppend prepared(
         final Namespace namespace,
-        final Subject subject,
-        final String event,
-        final String request
-    ) {
-        return prepared(namespace, subject, event, request, new AnyAppend());
-    }
-
-    private static PreparedAppend prepared(
-        final Namespace namespace,
-        final Subject subject,
-        final String event,
-        final String request,
+        final List<EventData> events,
         final AppendCondition condition
     ) {
-        return prepared(namespace, subject, event, request, condition, Set.of());
-    }
-
-    private static PreparedAppend prepared(
-        final Namespace namespace,
-        final Subject subject,
-        final String event,
-        final String request,
-        final AppendCondition condition,
-        final Set<ConsistencyKey> touched
-    ) {
+        String request = events.getFirst().id().toString();
         return new PreparedAppend(
             new AppendRequest(
                 namespace,
-                new IdempotencyKey(request),
-                List.of(data(subject, event)),
+                events,
                 condition,
-                touched,
-                Durability.DURABLE
+                new IdempotencyKey("request-" + request)
             ),
             new RequestDigest(("digest:" + request).getBytes(StandardCharsets.UTF_8)),
             request,
@@ -329,16 +255,14 @@ final class RocksEventStorageTest {
         );
     }
 
-    private static EventData data(final Subject subject, final String event) {
+    private static EventData event(final String seed, final EventType type, final EventTag... tags) {
         return new EventData(
-            new EventId(UUID.nameUUIDFromBytes(("event:" + event).getBytes(StandardCharsets.UTF_8))),
-            new EventType("invoice." + event),
-            subject,
+            new EventId(UUID.nameUUIDFromBytes(("event:" + seed).getBytes(StandardCharsets.UTF_8))),
+            type,
+            Set.of(tags),
             new ContentType("application/json"),
-            new SchemaReference("invoice-event:v1"),
-            ("{\"event\":\"" + event + "\"}").getBytes(StandardCharsets.UTF_8),
-            ("metadata:" + event).getBytes(StandardCharsets.UTF_8),
-            Map.of("source", "rocks-storage-test", "kind", event)
+            ("{\"event\":\"" + seed + "\"}").getBytes(StandardCharsets.UTF_8),
+            "{}".getBytes(StandardCharsets.UTF_8)
         );
     }
 }
