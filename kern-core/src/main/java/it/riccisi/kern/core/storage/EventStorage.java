@@ -8,10 +8,9 @@ import it.riccisi.kern.api.append.Durability;
  */
 public interface EventStorage extends AutoCloseable {
     /**
-     * Atomically observes every append condition, assigns positions and revisions,
-     * and commits the supplied appends with their event records, indexes, subject
-     * heads, consistency revisions, idempotency records, system metadata, and
-     * audit records when applicable.
+     * Atomically evaluates each query condition, assigns sequence positions and
+     * commits event records, indexes, idempotency records, metadata and audit
+     * records when applicable.
      */
     CommitOutcome commit(Iterable<PreparedAppend> appends, Durability durability);
 

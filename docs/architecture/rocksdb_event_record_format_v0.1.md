@@ -1,5 +1,9 @@
 # RocksDB Event Record Format v0.1
 
+> Status: Superseded by `kern_event_store_specification_v0.2.pdf`.
+> This document is historical and must not be used as the current storage
+> contract for new RocksDB code.
+
 Kern stores authoritative events as explicit binary records. Event records
 implement the same Cactoos `Bytes` contract used by RocksDB keys: callers ask
 the object for its binary representation and materialize `byte[]` only at the

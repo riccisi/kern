@@ -1,13 +1,14 @@
 package it.riccisi.kern.rocksdb.record;
 
+import it.riccisi.kern.api.value.EventTag;
 import it.riccisi.kern.rocksdb.binary.BinaryInput;
 import it.riccisi.kern.rocksdb.binary.TextFromInput;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.LinkedHashSet;
 import java.util.Objects;
+import java.util.Set;
 import org.cactoos.Scalar;
 
-final class EventRecordTagsFromInput implements Scalar<Map<String, String>> {
+final class EventRecordTagsFromInput implements Scalar<Set<EventTag>> {
 
     private final BinaryInput input;
 
@@ -16,19 +17,20 @@ final class EventRecordTagsFromInput implements Scalar<Map<String, String>> {
     }
 
     @Override
-    public Map<String, String> value() {
+    public Set<EventTag> value() {
         int count = input.nextInt();
         if (count < 0) {
             throw new CorruptEventRecordException("event record tag count must not be negative");
         }
-        Map<String, String> tags = new LinkedHashMap<>();
+        Set<EventTag> tags = new LinkedHashSet<>();
         for (int index = 0; index < count; index++) {
             String name = new TextFromInput(input).asString();
             String value = new TextFromInput(input).asString();
-            if (tags.put(name, value) != null) {
-                throw new CorruptEventRecordException("event record contains duplicate tag " + name);
+            EventTag tag = new EventTag(name, value);
+            if (!tags.add(tag)) {
+                throw new CorruptEventRecordException("event record contains duplicate tag " + tag);
             }
         }
-        return Map.copyOf(tags);
+        return Set.copyOf(tags);
     }
 }

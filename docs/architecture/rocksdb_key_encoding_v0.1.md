@@ -1,5 +1,9 @@
 # RocksDB Key Encoding v0.1
 
+> Status: Superseded by `kern_event_store_specification_v0.2.pdf`.
+> This document is historical and must not be used as the current key encoding
+> contract for new RocksDB code.
+
 Kern RocksDB keys are binary, deterministic, and scoped by namespace unless the
 key belongs to the system column family.
 

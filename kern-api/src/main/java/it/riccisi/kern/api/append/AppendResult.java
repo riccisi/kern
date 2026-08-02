@@ -1,18 +1,14 @@
 package it.riccisi.kern.api.append;
 
-import it.riccisi.kern.api.value.ConsistencyKey;
-import it.riccisi.kern.api.value.ConsistencyRevision;
-import it.riccisi.kern.api.value.Position;
-import it.riccisi.kern.api.value.Subject;
-import it.riccisi.kern.api.value.SubjectRevision;
-import java.util.Map;
+import it.riccisi.kern.api.value.SequencePosition;
 import java.util.Objects;
 
+/**
+ * Result of one logical append in the global event log.
+ */
 public record AppendResult(
-    Position fromPosition,
-    Position toPosition,
-    Map<Subject, SubjectRevision> subjectRevisions,
-    Map<ConsistencyKey, ConsistencyRevision> consistencyRevisions,
+    SequencePosition fromPosition,
+    SequencePosition toPosition,
     boolean replayedFromIdempotency
 ) {
     public AppendResult {
@@ -21,9 +17,5 @@ public record AppendResult(
         if (toPosition.value() < fromPosition.value()) {
             throw new IllegalArgumentException("to position must not be before from position");
         }
-        subjectRevisions = Map.copyOf(Objects.requireNonNull(subjectRevisions, "subject revisions must not be null"));
-        consistencyRevisions = Map.copyOf(
-            Objects.requireNonNull(consistencyRevisions, "consistency revisions must not be null")
-        );
     }
 }

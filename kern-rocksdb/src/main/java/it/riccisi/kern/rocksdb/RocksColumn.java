@@ -10,14 +10,13 @@ import org.rocksdb.RocksDB;
 enum RocksColumn {
     DEFAULT(RocksDB.DEFAULT_COLUMN_FAMILY),
     EVENTS("events"),
-    SUBJECT_REVISIONS("subject-revisions"),
-    EVENT_IDS("event-ids"),
-    TYPES("types"),
-    TAGS("tags"),
-    SUBJECT_HEADS("subject-heads"),
-    CONSISTENCY("consistency"),
+    EVENT_IDS("event_ids"),
+    TAG_TYPE_INDEX("tag_type_index"),
+    TYPE_INDEX("type_index"),
+    TAG_INDEX("tag_index"),
     IDEMPOTENCY("idempotency"),
-    SYSTEM("system");
+    METADATA("metadata"),
+    DIAGNOSTICS("diagnostics");
 
     private final byte[] name;
 

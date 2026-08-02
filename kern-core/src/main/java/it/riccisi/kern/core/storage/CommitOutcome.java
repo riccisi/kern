@@ -1,13 +1,13 @@
 package it.riccisi.kern.core.storage;
 
 import it.riccisi.kern.api.append.AppendResult;
-import it.riccisi.kern.api.value.Position;
+import it.riccisi.kern.api.value.SequencePosition;
 import java.util.List;
 import java.util.Objects;
 
 public record CommitOutcome(
     List<AppendResult> results,
-    Position highWatermark
+    SequencePosition highWatermark
 ) {
     public CommitOutcome {
         results = List.copyOf(Objects.requireNonNull(results, "append results must not be null"));

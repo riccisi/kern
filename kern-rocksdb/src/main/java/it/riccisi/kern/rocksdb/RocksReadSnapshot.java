@@ -1,20 +1,12 @@
 package it.riccisi.kern.rocksdb;
 
-import it.riccisi.kern.api.value.ConsistencyKey;
-import it.riccisi.kern.api.value.ConsistencyRevision;
 import it.riccisi.kern.api.value.EventId;
 import it.riccisi.kern.api.value.Namespace;
-import it.riccisi.kern.api.value.Position;
-import it.riccisi.kern.api.value.Subject;
-import it.riccisi.kern.api.value.SubjectRevision;
-import it.riccisi.kern.core.storage.EventPage;
-import it.riccisi.kern.core.storage.EventQuery;
+import it.riccisi.kern.api.value.SequencePosition;
+import it.riccisi.kern.api.query.QueryResult;
+import it.riccisi.kern.api.query.ReadRequest;
 import it.riccisi.kern.core.storage.ReadSnapshot;
-import it.riccisi.kern.core.storage.Revisions;
-import it.riccisi.kern.core.storage.RevisionQuery;
 import it.riccisi.kern.core.storage.StoredEvent;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import org.rocksdb.ReadOptions;
@@ -29,7 +21,7 @@ final class RocksReadSnapshot implements ReadSnapshot {
     private final Snapshot snapshot;
     private final ReadOptions options;
     private final RocksTables tables;
-    private final Position watermark;
+    private final SequencePosition watermark;
 
     RocksReadSnapshot(final RocksDB database, final RocksColumnFamilies families) {
         this.database = Objects.requireNonNull(database, "database must not be null");
@@ -40,23 +32,9 @@ final class RocksReadSnapshot implements ReadSnapshot {
     }
 
     @Override
-    public EventPage read(final EventQuery query) {
-        Objects.requireNonNull(query, "event query must not be null");
-        return tables.records().page(query, watermark);
-    }
-
-    @Override
-    public Revisions revisions(final RevisionQuery query) {
-        Objects.requireNonNull(query, "revision query must not be null");
-        Map<Subject, SubjectRevision> subjects = new HashMap<>();
-        for (Subject subject : query.subjects()) {
-            subjects.put(subject, tables.subjectHeads().revision(query.namespace(), subject));
-        }
-        Map<ConsistencyKey, ConsistencyRevision> consistency = new HashMap<>();
-        for (ConsistencyKey key : query.consistencyKeys()) {
-            consistency.put(key, tables.consistency().revision(query.namespace(), key));
-        }
-        return new Revisions(subjects, consistency, watermark);
+    public QueryResult read(final ReadRequest request) {
+        Objects.requireNonNull(request, "read request must not be null");
+        return tables.records().result(request, watermark);
     }
 
     @Override
@@ -67,7 +45,7 @@ final class RocksReadSnapshot implements ReadSnapshot {
     }
 
     @Override
-    public Position highWatermark() {
+    public SequencePosition highWatermark() {
         return watermark;
     }
 

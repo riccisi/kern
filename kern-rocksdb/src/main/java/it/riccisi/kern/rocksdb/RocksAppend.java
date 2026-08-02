@@ -1,80 +1,74 @@
 package it.riccisi.kern.rocksdb;
 
 import it.riccisi.kern.api.append.AppendResult;
-import it.riccisi.kern.api.append.EventData;
-import it.riccisi.kern.api.value.ConsistencyKey;
-import it.riccisi.kern.api.value.ConsistencyRevision;
-import it.riccisi.kern.api.value.Position;
-import it.riccisi.kern.api.value.Subject;
-import it.riccisi.kern.api.value.SubjectRevision;
+import it.riccisi.kern.api.event.EventData;
+import it.riccisi.kern.api.error.QueryConflict;
+import it.riccisi.kern.api.value.SequencePosition;
 import it.riccisi.kern.core.storage.PreparedAppend;
 import it.riccisi.kern.core.storage.StoredEvent;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 
 /**
- * One prepared append materialized into a RocksDB write batch.
+ * One query-checked append materialized into a RocksDB write batch.
  */
 final class RocksAppend {
     private final PreparedAppend append;
-    private final PersistedAppendState state;
+    private final SequencePosition highWatermark;
     private final RocksTables tables;
     private final RocksWriteBatch batch;
 
     RocksAppend(
         final PreparedAppend append,
-        final PersistedAppendState state,
+        final SequencePosition highWatermark,
         final RocksTables tables,
         final RocksWriteBatch batch
     ) {
         this.append = Objects.requireNonNull(append, "prepared append must not be null");
-        this.state = Objects.requireNonNull(state, "append state must not be null");
+        this.highWatermark = Objects.requireNonNull(highWatermark, "high watermark must not be null");
         this.tables = Objects.requireNonNull(tables, "RocksDB tables must not be null");
         this.batch = Objects.requireNonNull(batch, "RocksDB batch must not be null");
     }
 
     AppendResult result() {
         var request = append.request();
-        for (Subject subject : request.observedSubjects()) {
-            if (!state.knows(subject)) {
-                state.remember(subject, tables.subjectHeads().revision(request.namespace(), subject));
-            }
-        }
-        for (ConsistencyKey key : request.observedConsistencyKeys()) {
-            if (!state.knows(key)) {
-                state.remember(key, tables.consistency().revision(request.namespace(), key));
-            }
-        }
-        request.condition().verify(state, append.diagnosticRequestId());
-        Position from = state.nextPosition();
-        Map<Subject, SubjectRevision> subjectRevisions = new HashMap<>();
-        Map<ConsistencyKey, ConsistencyRevision> consistencyRevisions = new HashMap<>();
-        Position position = from;
+        tables.records()
+            .firstMatching(
+                request.namespace(),
+                request.condition().failIfEventsMatch(),
+                request.condition().after().next(),
+                highWatermark
+            )
+            .ifPresent(conflict -> {
+                int matched = request.condition().failIfEventsMatch()
+                    .matchingItem(conflict.data())
+                    .orElseThrow();
+                throw new QueryConflict(
+                    append.diagnosticRequestId(),
+                    request.condition().after(),
+                    conflict.position(),
+                    conflict.data().id(),
+                    conflict.data().type(),
+                    conflict.data().tags(),
+                    matched
+                );
+            });
+        SequencePosition from = highWatermark.next();
+        SequencePosition position = from;
         for (int index = 0; index < request.events().size(); index++) {
             EventData event = request.events().get(index);
-            SubjectRevision revision = state.nextRevision(event.subject());
-            subjectRevisions.put(event.subject(), revision);
             StoredEvent stored = new StoredEvent(
                 request.namespace(),
                 position,
-                revision,
                 event,
                 append.receivedAt()
             );
             tables.records().remember(stored, batch);
             tables.ids().remember(stored, batch);
-            tables.subjectRevisions().remember(request.namespace(), event.subject(), revision, position, batch);
-            tables.subjectHeads().remember(request.namespace(), event.subject(), revision, batch);
+            tables.indexes().remember(stored, batch);
             if (index < request.events().size() - 1) {
-                position = state.nextPosition();
+                position = position.next();
             }
         }
-        for (ConsistencyKey key : request.touchedConsistencyKeys()) {
-            state.touch(key, position);
-            consistencyRevisions.put(key, new ConsistencyRevision(position.value()));
-            tables.consistency().touch(request.namespace(), key, position, batch);
-        }
-        return new AppendResult(from, position, subjectRevisions, consistencyRevisions, false);
+        return new AppendResult(from, position, false);
     }
 }

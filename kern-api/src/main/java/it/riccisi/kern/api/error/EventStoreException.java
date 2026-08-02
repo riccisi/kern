@@ -3,8 +3,8 @@ package it.riccisi.kern.api.error;
 import java.util.Objects;
 
 public abstract sealed class EventStoreException extends RuntimeException
-    permits ConsistencyConflict, DataLossException, IdempotencyConflict, InvalidAppendException,
-    StorageUnavailableException, StoreOverloadedException, SubjectRevisionConflict {
+    permits DataLossException, IdempotencyConflict, InvalidAppendException, QueryConflict,
+    StorageUnavailableException, StoreOverloadedException {
     private final String diagnosticId;
 
     protected EventStoreException(String diagnosticId, String message) {

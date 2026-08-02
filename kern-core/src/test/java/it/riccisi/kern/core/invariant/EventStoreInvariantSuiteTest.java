@@ -14,12 +14,11 @@ final class EventStoreInvariantSuiteTest {
         assertThat(catalog()).extracting(Invariant::id).containsExactlyInAnyOrder(
             "global-positions-are-unique-and-contiguous",
             "append-batch-preserves-request-order",
-            "subject-revisions-are-contiguous",
             "durable-append-survives-restart",
             "append-batch-is-atomic",
             "idempotency-replay-adds-no-events",
             "idempotency-conflict-rejects-different-request",
-            "dcb-conflict-rejects-stale-revision",
+            "query-condition-rejects-later-matching-event",
             "rebuilt-indexes-are-query-equivalent",
             "subscription-from-position-omits-no-matching-event"
         );
@@ -72,14 +71,6 @@ final class EventStoreInvariantSuiteTest {
                 "https://github.com/riccisi/kern/issues/15"
             ),
             new Invariant(
-                "subject-revisions-are-contiguous",
-                "Every subject advances by contiguous revisions starting from the first committed event",
-                "storage integration",
-                Status.PENDING,
-                "RocksDB subject revision invariant test",
-                "https://github.com/riccisi/kern/issues/15"
-            ),
-            new Invariant(
                 "durable-append-survives-restart",
                 "An append acknowledged as durable is present after storage restart",
                 "storage integration",
@@ -112,12 +103,12 @@ final class EventStoreInvariantSuiteTest {
                 "https://github.com/riccisi/kern/issues/16"
             ),
             new Invariant(
-                "dcb-conflict-rejects-stale-revision",
-                "A DCB append does not commit when at least one expected consistency revision differs",
+                "query-condition-rejects-later-matching-event",
+                "A conditional append does not commit when a later event matches its complete query",
                 "concurrency",
                 Status.PENDING,
-                "DCB conflict invariant test",
-                "https://github.com/riccisi/kern/issues/17"
+                "Query conditional append invariant test",
+                "https://github.com/riccisi/kern/issues/23"
             ),
             new Invariant(
                 "rebuilt-indexes-are-query-equivalent",

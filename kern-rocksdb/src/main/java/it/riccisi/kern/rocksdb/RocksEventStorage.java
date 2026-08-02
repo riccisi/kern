@@ -2,6 +2,7 @@ package it.riccisi.kern.rocksdb;
 
 import it.riccisi.kern.api.append.AppendResult;
 import it.riccisi.kern.api.append.Durability;
+import it.riccisi.kern.api.value.SequencePosition;
 import it.riccisi.kern.core.storage.CommitOutcome;
 import it.riccisi.kern.core.storage.EventStorage;
 import it.riccisi.kern.core.storage.FlushMode;
@@ -10,7 +11,6 @@ import it.riccisi.kern.core.storage.ReadSnapshot;
 import it.riccisi.kern.core.storage.StorageDiagnostics;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -49,32 +49,30 @@ public final class RocksEventStorage implements EventStorage {
         }
         this.families = new RocksColumnFamilies(handles);
         this.tables = new RocksTables(new RocksReader(database, families));
+        this.ensureFormatVersion();
     }
 
     @Override
     public synchronized CommitOutcome commit(final Iterable<PreparedAppend> appends, final Durability durability) {
         Objects.requireNonNull(appends, "prepared appends must not be null");
         Objects.requireNonNull(durability, "durability must not be null");
-        List<AppendResult> results = new ArrayList<>();
+        List<PreparedAppend> requests = new ArrayList<>();
+        appends.forEach(requests::add);
+        if (requests.isEmpty()) {
+            throw new IllegalArgumentException("prepared appends must not be empty");
+        }
+        if (requests.size() > 1) {
+            throw new IllegalArgumentException("group commit requires an overlay and is not enabled");
+        }
         try (
             RocksWriteBatch batch = new RocksWriteBatch(families);
             WriteOptions options = new WriteOptions().setSync(durability == Durability.DURABLE)
         ) {
-            PersistedAppendState state = new PersistedAppendState(
-                tables.metadata().highWatermark(),
-                new HashMap<>(),
-                new HashMap<>()
-            );
-            for (PreparedAppend append : appends) {
-                AppendResult result = new RocksAppend(append, state, tables, batch).result();
-                results.add(result);
-            }
-            if (results.isEmpty()) {
-                throw new IllegalArgumentException("prepared appends must not be empty");
-            }
-            tables.metadata().remember(state.highWatermark(), batch);
+            SequencePosition highWatermark = tables.metadata().highWatermark();
+            AppendResult result = new RocksAppend(requests.getFirst(), highWatermark, tables, batch).result();
+            tables.metadata().remember(result.toPosition(), batch);
             database.write(options, batch.nativeBatch());
-            return new CommitOutcome(results, state.highWatermark());
+            return new CommitOutcome(List.of(result), result.toPosition());
         } catch (RocksDBException exception) {
             throw new IllegalStateException("cannot commit RocksDB append batch", exception);
         }
@@ -105,5 +103,20 @@ public final class RocksEventStorage implements EventStorage {
         families.close();
         database.close();
         options.close();
+    }
+
+    private void ensureFormatVersion() {
+        tables.metadata().verifyFormat();
+        if (tables.metadata().formatVersion().isEmpty()) {
+            try (
+                RocksWriteBatch batch = new RocksWriteBatch(families);
+                WriteOptions options = new WriteOptions().setSync(true)
+            ) {
+                tables.metadata().rememberFormat(batch);
+                database.write(options, batch.nativeBatch());
+            } catch (RocksDBException exception) {
+                throw new IllegalStateException("cannot initialize RocksDB storage format", exception);
+            }
+        }
     }
 }
