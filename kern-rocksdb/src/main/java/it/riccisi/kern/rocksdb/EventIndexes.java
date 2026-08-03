@@ -9,10 +9,11 @@ import org.cactoos.bytes.BytesOf;
 /**
  * Derived posting lists for query planning over tags and event types.
  */
-final class EventIndexes {
+final class EventIndexes implements EventColumnFamily {
     private static final BytesOf EMPTY = new BytesOf(new byte[0]);
 
-    void remember(final StoredEvent event, final RocksWriteBatch batch) {
+    @Override
+    public void remember(final StoredEvent event, final RocksWriteBatch batch) {
         batch.put(RocksColumn.TYPE_INDEX, new EventTypeKey(
             event.namespace(),
             event.data().type(),

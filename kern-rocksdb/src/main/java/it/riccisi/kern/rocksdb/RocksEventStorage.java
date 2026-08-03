@@ -74,7 +74,7 @@ public final class RocksEventStorage implements EventStorage {
             if (replayed.isPresent()) {
                 return new CommitOutcome(List.of(replayed.get()), highWatermark);
             }
-            AppendResult result = new RocksAppend(append, highWatermark, tables, batch).result();
+            AppendResult result = tables.events().append(append, highWatermark, batch);
             tables.idempotency().remember(append, result, batch);
             tables.metadata().remember(result.toPosition(), batch);
             database.write(options, batch.nativeBatch());
