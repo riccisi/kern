@@ -48,8 +48,14 @@ final class EventStoreInvariantSuiteTest {
     }
 
     @Test
-    void doesNotClaimExecutableCoverageBeforeStorageExists() {
-        assertThat(catalog().stream().filter(invariant -> invariant.status() == Status.EXECUTABLE)).isEmpty();
+    void claimsExecutableCoverageOnlyForImplementedInvariants() {
+        assertThat(catalog().stream()
+            .filter(invariant -> invariant.status() == Status.EXECUTABLE)
+            .map(Invariant::id))
+            .containsExactlyInAnyOrder(
+                "idempotency-replay-adds-no-events",
+                "idempotency-conflict-rejects-different-request"
+            );
     }
 
     private static List<Invariant> catalog() {
@@ -89,17 +95,17 @@ final class EventStoreInvariantSuiteTest {
             new Invariant(
                 "idempotency-replay-adds-no-events",
                 "Replaying the same idempotency key and request returns the original result without appending events",
-                "core unit",
-                Status.PENDING,
-                "Idempotency replay invariant test",
+                "storage integration",
+                Status.EXECUTABLE,
+                "RocksDB idempotency replay invariant test",
                 "https://github.com/riccisi/kern/issues/16"
             ),
             new Invariant(
                 "idempotency-conflict-rejects-different-request",
                 "Reusing an idempotency key with a different request is rejected",
-                "core unit",
-                Status.PENDING,
-                "Idempotency conflict invariant test",
+                "storage integration",
+                Status.EXECUTABLE,
+                "RocksDB idempotency conflict invariant test",
                 "https://github.com/riccisi/kern/issues/16"
             ),
             new Invariant(

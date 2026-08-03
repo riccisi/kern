@@ -54,6 +54,24 @@ final class CommitOutcomeInvariantTest {
             .hasMessage("high watermark must match committed append results");
     }
 
+    @Test
+    void acceptsReplayedResultBeforeCurrentHighWatermark() {
+        assertThat(new CommitOutcome(
+            List.of(new AppendResult(new SequencePosition(41), new SequencePosition(42), true)),
+            new SequencePosition(49)
+        ).highWatermark()).isEqualTo(new SequencePosition(49));
+    }
+
+    @Test
+    void rejectsReplayedResultAfterCurrentHighWatermark() {
+        assertThatThrownBy(() -> new CommitOutcome(
+            List.of(new AppendResult(new SequencePosition(41), new SequencePosition(42), true)),
+            new SequencePosition(40)
+        ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("replayed append result must not exceed high watermark");
+    }
+
     private static AppendResult result(final long from, final long to) {
         return new AppendResult(new SequencePosition(from), new SequencePosition(to), false);
     }
