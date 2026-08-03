@@ -12,7 +12,7 @@ import java.util.Optional;
 /**
  * Event id index that maps client event ids to global positions.
  */
-final class EventIds {
+final class EventIds implements EventColumnFamily {
     private final RocksReader reader;
     private final EventRecords records;
 
@@ -21,7 +21,8 @@ final class EventIds {
         this.records = records;
     }
 
-    void remember(final StoredEvent event, final RocksWriteBatch batch) {
+    @Override
+    public void remember(final StoredEvent event, final RocksWriteBatch batch) {
         batch.put(RocksColumn.EVENT_IDS, new EventIdKey(event.namespace(), event.data().id()), new LongBytes(event.position().value()));
     }
 

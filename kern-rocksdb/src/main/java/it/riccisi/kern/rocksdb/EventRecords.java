@@ -16,14 +16,15 @@ import java.util.Optional;
 /**
  * Event records addressed by global position.
  */
-final class EventRecords {
+final class EventRecords implements EventColumnFamily {
     private final RocksReader reader;
 
     EventRecords(final RocksReader reader) {
         this.reader = Objects.requireNonNull(reader, "RocksDB reader must not be null");
     }
 
-    void remember(final StoredEvent event, final RocksWriteBatch batch) {
+    @Override
+    public void remember(final StoredEvent event, final RocksWriteBatch batch) {
         batch.put(RocksColumn.EVENTS, new EventKey(event.namespace(), event.position()), new StoredEventRecord(event));
     }
 
