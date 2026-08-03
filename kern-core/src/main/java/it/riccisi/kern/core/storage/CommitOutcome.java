@@ -15,26 +15,36 @@ public record CommitOutcome(
             throw new IllegalArgumentException("append results must not be empty");
         }
         Objects.requireNonNull(highWatermark, "high watermark must not be null");
-        long expected = results.getFirst().fromPosition().value();
-        long last = -1;
-        boolean exhausted = false;
-        for (AppendResult result : results) {
-            if (exhausted) {
-                throw new IllegalArgumentException("append result positions must be contiguous");
-            }
-            if (result.fromPosition().value() != expected) {
-                throw new IllegalArgumentException("append result positions must be contiguous");
-            }
-            last = result.toPosition().value();
-            if (last == Long.MAX_VALUE) {
-                expected = Long.MAX_VALUE;
-                exhausted = true;
-            } else {
-                expected = last + 1;
-            }
+        List<AppendResult> committed = results.stream()
+            .filter(result -> !result.replayedFromIdempotency())
+            .toList();
+        if (results.stream()
+            .filter(AppendResult::replayedFromIdempotency)
+            .anyMatch(result -> result.toPosition().value() > highWatermark.value())) {
+            throw new IllegalArgumentException("replayed append result must not exceed high watermark");
         }
-        if (highWatermark.value() != last) {
-            throw new IllegalArgumentException("high watermark must match committed append results");
+        if (!committed.isEmpty()) {
+            long expected = committed.getFirst().fromPosition().value();
+            long last = -1;
+            boolean exhausted = false;
+            for (AppendResult result : committed) {
+                if (exhausted) {
+                    throw new IllegalArgumentException("append result positions must be contiguous");
+                }
+                if (result.fromPosition().value() != expected) {
+                    throw new IllegalArgumentException("append result positions must be contiguous");
+                }
+                last = result.toPosition().value();
+                if (last == Long.MAX_VALUE) {
+                    expected = Long.MAX_VALUE;
+                    exhausted = true;
+                } else {
+                    expected = last + 1;
+                }
+            }
+            if (highWatermark.value() != last) {
+                throw new IllegalArgumentException("high watermark must match committed append results");
+            }
         }
     }
 

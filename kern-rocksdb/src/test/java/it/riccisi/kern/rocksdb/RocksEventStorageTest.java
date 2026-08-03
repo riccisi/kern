@@ -5,7 +5,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import it.riccisi.kern.api.append.AppendCondition;
 import it.riccisi.kern.api.append.AppendRequest;
+import it.riccisi.kern.api.append.AppendResult;
 import it.riccisi.kern.api.append.Durability;
+import it.riccisi.kern.api.error.IdempotencyConflict;
 import it.riccisi.kern.api.error.QueryConflict;
 import it.riccisi.kern.api.event.EventData;
 import it.riccisi.kern.api.query.EventQuery;
@@ -114,6 +116,96 @@ final class RocksEventStorageTest {
             assertThatThrownBy(() -> storage.commit(List.of(first, second), Durability.DURABLE))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("group commit requires an overlay and is not enabled");
+        }
+    }
+
+    @Test
+    void replaysEquivalentAppendWithoutAddingEvents(@TempDir final Path directory) {
+        Namespace namespace = new Namespace("tenant-idempotent-replay");
+        PreparedAppend append = prepared(
+            namespace,
+            List.of(event("first", STUDENT_ENROLLED, STUDENT)),
+            noConflict()
+        );
+        try (RocksEventStorage storage = new RocksEventStorage(directory)) {
+            AppendResult first = storage.commit(List.of(append), Durability.DURABLE).onlyResult();
+            AppendResult replay = storage.commit(List.of(append), Durability.DURABLE).onlyResult();
+
+            assertThat(replay).isEqualTo(new AppendResult(first.fromPosition(), first.toPosition(), true));
+            assertThat(storage.diagnostics().highWatermark()).isEqualTo(first.toPosition());
+            try (ReadSnapshot snapshot = storage.snapshot()) {
+                assertThat(snapshot.read(read(namespace, query(STUDENT), new SequencePosition(0))).events())
+                    .hasSize(1);
+            }
+        }
+    }
+
+    @Test
+    void replaysEquivalentAppendAfterRestart(@TempDir final Path directory) {
+        Namespace namespace = new Namespace("tenant-idempotent-restart");
+        PreparedAppend append = prepared(
+            namespace,
+            List.of(event("restart", STUDENT_ENROLLED, STUDENT)),
+            noConflict()
+        );
+        AppendResult first;
+        try (RocksEventStorage storage = new RocksEventStorage(directory)) {
+            first = storage.commit(List.of(append), Durability.DURABLE).onlyResult();
+        }
+        try (RocksEventStorage reopened = new RocksEventStorage(directory)) {
+            assertThat(reopened.commit(List.of(append), Durability.DURABLE).onlyResult())
+                .isEqualTo(new AppendResult(first.fromPosition(), first.toPosition(), true));
+            assertThat(reopened.diagnostics().highWatermark()).isEqualTo(first.toPosition());
+        }
+    }
+
+    @Test
+    void rejectsReusingIdempotencyKeyWithDifferentDigest(@TempDir final Path directory) {
+        Namespace namespace = new Namespace("tenant-idempotent-conflict");
+        PreparedAppend first = prepared(
+            namespace,
+            List.of(event("conflict-a", STUDENT_ENROLLED, STUDENT)),
+            noConflict(),
+            new IdempotencyKey("same-key"),
+            new RequestDigest("digest:first".getBytes(StandardCharsets.UTF_8))
+        );
+        PreparedAppend second = prepared(
+            namespace,
+            List.of(event("conflict-b", STUDENT_ENROLLED, STUDENT)),
+            noConflict(),
+            new IdempotencyKey("same-key"),
+            new RequestDigest("digest:second".getBytes(StandardCharsets.UTF_8))
+        );
+        try (RocksEventStorage storage = new RocksEventStorage(directory)) {
+            storage.commit(List.of(first), Durability.DURABLE);
+
+            assertThatThrownBy(() -> storage.commit(List.of(second), Durability.DURABLE))
+                .isInstanceOf(IdempotencyConflict.class)
+                .satisfies(error -> assertThat(((IdempotencyConflict) error).key())
+                    .isEqualTo(new IdempotencyKey("same-key")));
+            assertThat(storage.diagnostics().highWatermark()).isEqualTo(new SequencePosition(1));
+        }
+    }
+
+    @Test
+    void replayDoesNotMoveTheCurrentHighWatermarkBackwards(@TempDir final Path directory) {
+        Namespace namespace = new Namespace("tenant-idempotent-highwatermark");
+        PreparedAppend first = prepared(namespace, List.of(event("original", STUDENT_ENROLLED, STUDENT)), noConflict());
+        PreparedAppend second = prepared(
+            namespace,
+            List.of(event("later", STUDENT_ADDRESS_CHANGED, STUDENT)),
+            condition(new EventQuery(List.of()), new SequencePosition(1))
+        );
+        try (RocksEventStorage storage = new RocksEventStorage(directory)) {
+            AppendResult original = storage.commit(List.of(first), Durability.DURABLE).onlyResult();
+            storage.commit(List.of(second), Durability.DURABLE);
+
+            assertThat(storage.commit(List.of(first), Durability.DURABLE))
+                .satisfies(outcome -> {
+                    assertThat(outcome.onlyResult())
+                        .isEqualTo(new AppendResult(original.fromPosition(), original.toPosition(), true));
+                    assertThat(outcome.highWatermark()).isEqualTo(new SequencePosition(2));
+                });
         }
     }
 
@@ -242,14 +334,31 @@ final class RocksEventStorageTest {
         final AppendCondition condition
     ) {
         String request = events.getFirst().id().toString();
+        return prepared(
+            namespace,
+            events,
+            condition,
+            new IdempotencyKey("request-" + request),
+            new RequestDigest(("digest:" + request).getBytes(StandardCharsets.UTF_8))
+        );
+    }
+
+    private static PreparedAppend prepared(
+        final Namespace namespace,
+        final List<EventData> events,
+        final AppendCondition condition,
+        final IdempotencyKey key,
+        final RequestDigest digest
+    ) {
+        String request = events.getFirst().id().toString();
         return new PreparedAppend(
             new AppendRequest(
                 namespace,
                 events,
                 condition,
-                new IdempotencyKey("request-" + request)
+                key
             ),
-            new RequestDigest(("digest:" + request).getBytes(StandardCharsets.UTF_8)),
+            digest,
             request,
             Instant.parse("2026-07-30T13:15:00Z")
         );

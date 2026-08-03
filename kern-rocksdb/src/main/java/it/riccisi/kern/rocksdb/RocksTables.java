@@ -8,12 +8,14 @@ final class RocksTables {
     private final EventRecords records;
     private final EventIndexes indexes;
     private final EventIds ids;
+    private final IdempotencyRecords idempotency;
 
     RocksTables(final RocksReader reader) {
         this.metadata = new StoreMetadata(reader);
         this.records = new EventRecords(reader);
         this.indexes = new EventIndexes();
         this.ids = new EventIds(reader, records);
+        this.idempotency = new IdempotencyRecords(reader);
     }
 
     StoreMetadata metadata() {
@@ -30,5 +32,9 @@ final class RocksTables {
 
     EventIds ids() {
         return ids;
+    }
+
+    IdempotencyRecords idempotency() {
+        return idempotency;
     }
 }

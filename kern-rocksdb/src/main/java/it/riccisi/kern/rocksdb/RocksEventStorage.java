@@ -69,7 +69,13 @@ public final class RocksEventStorage implements EventStorage {
             WriteOptions options = new WriteOptions().setSync(durability == Durability.DURABLE)
         ) {
             SequencePosition highWatermark = tables.metadata().highWatermark();
-            AppendResult result = new RocksAppend(requests.getFirst(), highWatermark, tables, batch).result();
+            PreparedAppend append = requests.getFirst();
+            var replayed = tables.idempotency().replay(append);
+            if (replayed.isPresent()) {
+                return new CommitOutcome(List.of(replayed.get()), highWatermark);
+            }
+            AppendResult result = new RocksAppend(append, highWatermark, tables, batch).result();
+            tables.idempotency().remember(append, result, batch);
             tables.metadata().remember(result.toPosition(), batch);
             database.write(options, batch.nativeBatch());
             return new CommitOutcome(List.of(result), result.toPosition());
