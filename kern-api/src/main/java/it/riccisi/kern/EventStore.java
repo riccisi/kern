@@ -44,4 +44,16 @@ public interface EventStore {
     default StoredEvents events(final EventFilter filter) {
         return this.events(Namespace.DEFAULT, filter);
     }
+
+    /**
+     * Observes matching stored events in the default namespace strictly after
+     * {@code after}.
+     *
+     * @param filter The semantic relevance boundary.
+     * @param after The exclusive lower position boundary.
+     * @return A bounded observation of matching persisted events.
+     */
+    default StoredEvents events(final EventFilter filter, final Position after) {
+        return this.events(Namespace.DEFAULT, filter, after);
+    }
 }

@@ -17,7 +17,7 @@ public interface EventSelection<T> {
      * @param selections The selections to combine.
      * @return The combined selection.
      */
-    T all(Iterable<T> selections);
+    T all(Iterable<? extends T> selections);
 
     /**
      * Represents events matching any supplied selection.
@@ -25,7 +25,7 @@ public interface EventSelection<T> {
      * @param selections The selections to combine.
      * @return The combined selection.
      */
-    T any(Iterable<T> selections);
+    T any(Iterable<? extends T> selections);
 
     /**
      * Represents events of a given type.

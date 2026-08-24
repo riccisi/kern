@@ -677,7 +677,7 @@ Kern's ADRs are the architectural authority for the project, you can find it her
 - [003-rocksdb-storage-engine.md](docs/adr/003-rocksdb-storage-engine.md)
 - [004-subscription-continuation.md](docs/adr/004-subscription-continuation.md)
 - [005-kern-event-query-language.md](docs/adr/005-kern-event-query-language.md)
-- [006-contraint-oriented-decision-model.md](docs/adr/006-contraint-oriented-decision-model.md)
+- [006-constraint-oriented-decision-model.md](docs/adr/006-constraint-oriented-decision-model.md)
 
 They document not only implementation choices but, more importantly, the
 reasoning and invariants behind the public model, runtime behavior, storage

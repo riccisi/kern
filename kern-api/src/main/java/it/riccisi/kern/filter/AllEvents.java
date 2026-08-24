@@ -1,16 +1,19 @@
-package it.riccisi.kern;
+package it.riccisi.kern.filter;
 
+import it.riccisi.kern.EventFilter;
+import it.riccisi.kern.EventSelection;
 import lombok.NonNull;
 import org.cactoos.iterable.IterableOf;
 import org.cactoos.iterable.Mapped;
 import org.cactoos.iterable.NoNulls;
+import org.cactoos.list.ListOf;
 
 /**
  * Composite filter selecting events that match every contained filter.
  */
 public final class AllEvents implements EventFilter {
 
-    @NonNull private final Iterable<EventFilter> filters;
+    private final Iterable<EventFilter> filters;
 
     /**
      * Builds a conjunction of event filters.
@@ -18,7 +21,7 @@ public final class AllEvents implements EventFilter {
      * @param filters The filters that must all match.
      */
     public AllEvents(@NonNull final Iterable<EventFilter> filters) {
-        this.filters = new NoNulls<>(filters);
+        this.filters = new ListOf<>(new NoNulls<>(filters));
     }
 
     /**
@@ -40,7 +43,7 @@ public final class AllEvents implements EventFilter {
     @Override
     public <T> T describe(@NonNull final EventSelection<T> selection) {
         return selection.all(
-            new Mapped<T>(
+            new Mapped<>(
                 filter -> filter.describe(selection),
                 this.filters
             )

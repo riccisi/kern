@@ -1,5 +1,7 @@
 package it.riccisi.kern;
 
+import lombok.NonNull;
+
 import java.util.Objects;
 
 /**
@@ -23,9 +25,9 @@ public final class StaleTailException extends RuntimeException {
      *
      * @param conflict The conflict that invalidated the tail.
      */
-    public StaleTailException(final Conflict conflict) {
+    public StaleTailException(@NonNull final Conflict conflict) {
         super("Tail is stale");
-        this.conflict = Objects.requireNonNull(conflict, "Conflict must not be null");
+        this.conflict = conflict;
     }
 
     /**

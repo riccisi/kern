@@ -46,12 +46,6 @@ public record Position(long value) implements Comparable<Position> {
     }
 
     @Override
-    public boolean equals(final Object other) {
-        return this == other || other instanceof Position that
-            && this.value == that.value;
-    }
-
-    @Override
     public String toString() {
         return Long.toString(this.value);
     }

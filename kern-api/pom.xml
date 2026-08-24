@@ -22,7 +22,6 @@
         <dependency>
             <groupId>org.cactoos</groupId>
             <artifactId>cactoos</artifactId>
-            <version>${cactoos.version}</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

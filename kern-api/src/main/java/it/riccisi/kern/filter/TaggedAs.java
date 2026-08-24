@@ -1,5 +1,9 @@
-package it.riccisi.kern;
+package it.riccisi.kern.filter;
 
+import it.riccisi.kern.EventFilter;
+import it.riccisi.kern.EventSelection;
+import it.riccisi.kern.tag.EventTag;
+import it.riccisi.kern.Tag;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
@@ -31,7 +35,7 @@ public final class TaggedAs implements EventFilter {
      * @return This filter represented as {@code T}.
      */
     @Override
-    public <T> T describe(final EventSelection<T> selection) {
+    public <T> T describe(@NonNull final EventSelection<T> selection) {
         return selection.taggedAs(this.tag);
     }
 }

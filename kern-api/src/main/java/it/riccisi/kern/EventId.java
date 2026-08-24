@@ -27,12 +27,6 @@ public record EventId(@NonNull String value) {
     }
 
     @Override
-    public boolean equals(final Object other) {
-        return this == other || other instanceof EventId that
-            && this.value.equals(that.value);
-    }
-
-    @Override
     public String toString() {
         return this.value;
     }

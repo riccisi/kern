@@ -1,7 +1,9 @@
-package it.riccisi.kern;
+package it.riccisi.kern.tag;
 
-import lombok.NonNull;
-import org.cactoos.iterable.IterableOf;
+import it.riccisi.kern.Tag;
+import it.riccisi.kern.TagName;
+import it.riccisi.kern.TagValue;
+import it.riccisi.kern.Tags;
 
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -17,7 +19,7 @@ import java.util.Objects;
  */
 public final class EventTags implements Tags {
 
-    @NonNull private final Iterable<Tag> tags;
+    private final Iterable<Tag> tags;
 
     /**
      * Builds tags from an iterable.
@@ -26,9 +28,9 @@ public final class EventTags implements Tags {
      * @throws NullPointerException When a tag is {@code null}.
      * @throws IllegalArgumentException When a tag name occurs more than once.
      */
-    public EventTags(@NonNull final Iterable<? extends Tag> tags) {
+    public EventTags(final Iterable<? extends Tag> tags) {
         final Map<TagName, Tag> unique = new LinkedHashMap<>();
-        for (final Tag tag : tags) {
+        for (final Tag tag : Objects.requireNonNull(tags, "Tags must not be null")) {
             final Tag current = Objects.requireNonNull(tag, "Tag must not be null");
             if (unique.putIfAbsent(current.name(), current) != null) {
                 throw new IllegalArgumentException("TagName must occur at most once per event");
@@ -42,8 +44,8 @@ public final class EventTags implements Tags {
      *
      * @param tags The tags associated with an event.
      */
-    public EventTags(@NonNull final Tag... tags) {
-        this(new IterableOf<>(tags));
+    public EventTags(final Tag... tags) {
+        this(List.of(tags));
     }
 
     /**

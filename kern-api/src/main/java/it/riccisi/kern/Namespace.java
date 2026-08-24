@@ -2,6 +2,8 @@ package it.riccisi.kern;
 
 import lombok.NonNull;
 
+import java.util.Objects;
+
 /**
  * Logical event partition addressed by {@link EventStore} operations.
  *
@@ -24,17 +26,10 @@ public record Namespace(@NonNull String value) {
      * @throws NullPointerException     When {@code value} is {@code null}.
      * @throws IllegalArgumentException When {@code value} is blank.
      */
-    public Namespace(final String value) {
+    public Namespace {
         if (value.isBlank()) {
             throw new IllegalArgumentException("Namespace must not be blank");
         }
-        this.value = value;
-    }
-
-    @Override
-    public boolean equals(final Object other) {
-        return this == other || other instanceof Namespace that
-            && this.value.equals(that.value);
     }
 
     @Override
