@@ -1,10 +1,12 @@
 package it.riccisi.kern;
 
 import lombok.NonNull;
-import org.cactoos.Text;
 
 /**
  * Canonical value of an application-defined event tag.
+ *
+ * <p>A tag value is an opaque bounded textual value, not a schema-constrained
+ * identifier.</p>
  */
 public final class TagValue extends SemanticAtom {
 

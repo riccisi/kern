@@ -1,6 +1,5 @@
 package it.riccisi.kern;
 
-
 import java.util.regex.Pattern;
 import lombok.NonNull;
 import org.cactoos.Text;
@@ -16,6 +15,20 @@ final class Identifier implements Text {
         @NonNull final String origin,
         final int maximum,
         final String label
+    ) {
+        this(
+            origin,
+            maximum,
+            label,
+            Identifier.VALID
+        );
+    }
+
+    Identifier(
+        @NonNull final String origin,
+        final int maximum,
+        final String label,
+        @NonNull final Pattern pattern
     ) {
         if (origin.isBlank()) {
             throw new IllegalArgumentException(
@@ -34,10 +47,10 @@ final class Identifier implements Text {
                     + " characters"
             );
         }
-        if (!Identifier.VALID.matcher(origin).matches()) {
+        if (!pattern.matcher(origin).matches()) {
             throw new IllegalArgumentException(
                 label + " must match "
-                    + Identifier.VALID.pattern()
+                    + pattern.pattern()
             );
         }
         this.origin = origin;

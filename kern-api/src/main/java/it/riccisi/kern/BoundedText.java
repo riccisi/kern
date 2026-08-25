@@ -1,10 +1,8 @@
 package it.riccisi.kern;
 
-
+import java.nio.charset.StandardCharsets;
 import lombok.NonNull;
 import org.cactoos.Text;
-
-import java.nio.charset.StandardCharsets;
 
 final class BoundedText implements Text {
 

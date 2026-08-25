@@ -7,7 +7,8 @@ import lombok.NonNull;
  *
  * <p>The identity exists before persistence and is part of the semantic event
  * fact. It supports stable identification, deduplication, and idempotent retry
- * of appends.</p>
+ * of appends. It is an opaque bounded textual value, not a schema-constrained
+ * identifier.</p>
  */
 public final class EventId extends SemanticAtom {
 

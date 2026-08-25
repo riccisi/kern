@@ -1,10 +1,12 @@
 package it.riccisi.kern;
 
 import lombok.NonNull;
-import org.cactoos.Text;
 
 /**
  * Name of an application-defined event tag.
+ *
+ * <p>Its portable identifier format is
+ * {@code [A-Za-z][A-Za-z0-9._-]*}.</p>
  */
 public final class TagName extends SemanticAtom {
 

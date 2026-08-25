@@ -1,6 +1,5 @@
 package it.riccisi.kern;
 
-
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.cactoos.Text;
@@ -19,8 +18,11 @@ public abstract class SemanticAtom implements Text {
     @Override
     public boolean equals(final Object other) {
         return this == other
-            || other.getClass().equals(this.getClass())
-            && this.asString().equals(this.getClass().cast(other).asString());
+            || other != null
+            && other.getClass().equals(this.getClass())
+            && this.asString().equals(
+            this.getClass().cast(other).asString()
+        );
     }
 
     @Override
