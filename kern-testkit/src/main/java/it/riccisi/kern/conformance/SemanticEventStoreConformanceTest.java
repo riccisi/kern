@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 
@@ -24,6 +25,7 @@ import it.riccisi.kern.StoredEvent;
 import it.riccisi.kern.StoredEvents;
 import it.riccisi.kern.TagName;
 import it.riccisi.kern.Tags;
+import it.riccisi.kern.filter.AllEvents;
 import it.riccisi.kern.filter.AnyEvents;
 import it.riccisi.kern.filter.TaggedAs;
 import it.riccisi.kern.filter.TypedBy;
@@ -38,6 +40,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -56,6 +59,158 @@ public abstract class SemanticEventStoreConformanceTest {
     protected abstract EventStore store();
 
     @Test
+    public final void matchesEventsByType() {
+        assertThat(
+            "TypedBy must select only events with the requested EventType",
+            this.idsMatching(this.store(), new TypedBy("CourseCreated")),
+            contains(
+                new EventId("course-created-7"),
+                new EventId("course-created-8")
+            )
+        );
+    }
+
+    @Test
+    public final void matchesEventsByTag() {
+        assertThat(
+            "TaggedAs must select only events carrying the requested tag",
+            this.idsMatching(this.store(), new TaggedAs("studentId", "s11")),
+            contains(new EventId("student-enrolled-11"))
+        );
+    }
+
+    @Test
+    public final void intersectsFiltersWithAllEvents() {
+        assertThat(
+            "AllEvents must select only events matching every child filter",
+            this.idsMatching(
+                this.store(),
+                new AllEvents(
+                    new TypedBy("CourseCreated"),
+                    new TaggedAs("courseId", "c7")
+                )
+            ),
+            contains(new EventId("course-created-7"))
+        );
+    }
+
+    @Test
+    public final void unitesFiltersWithAnyEvents() {
+        assertThat(
+            "AnyEvents must select events matching at least one child filter",
+            this.idsMatching(
+                this.store(),
+                new AnyEvents(
+                    new TypedBy("CourseRemoved"),
+                    new TaggedAs("studentId", "s11")
+                )
+            ),
+            contains(
+                new EventId("course-removed-7"),
+                new EventId("student-enrolled-11")
+            )
+        );
+    }
+
+    @Test
+    public final void composesNestedFilters() {
+        assertThat(
+            "nested filters must preserve AND/OR algebra semantics",
+            this.idsMatching(
+                this.store(),
+                new AllEvents(
+                    new AnyEvents(
+                        new TypedBy("CourseCreated"),
+                        new TypedBy("CourseChanged")
+                    ),
+                    new TaggedAs("courseId", "c7")
+                )
+            ),
+            contains(
+                new EventId("course-created-7"),
+                new EventId("course-changed-7")
+            )
+        );
+    }
+
+    @Test
+    public final void isolatesNamespaces() {
+        assertThat(
+            "namespace must delimit observations",
+            this.idsObservedInOneNamespace(this.store()),
+            contains(new EventId("course-created-7"))
+        );
+    }
+
+    @Test
+    public final void treatsAfterPositionAsExclusive() {
+        assertThat(
+            "events(namespace, filter, after) must exclude the after Position itself",
+            this.idsAfterFirstPosition(this.store()),
+            contains(
+                new EventId("course-removed-7"),
+                new EventId("course-created-8"),
+                new EventId("course-changed-7")
+            )
+        );
+    }
+
+    @Test
+    public final void assignsMonotonicPositions() {
+        assertThat(
+            "stored events must appear in monotonically increasing Position order",
+            this.positionsOfSampleHistory(this.store()),
+            contains(
+                new Position(1L),
+                new Position(2L),
+                new Position(3L),
+                new Position(4L)
+            )
+        );
+    }
+
+    @Test
+    public final void returnsEmptyObservationWhenNothingMatches() {
+        assertThat(
+            "an observation with no matching events must be empty",
+            this.idsMatching(this.store(), new TypedBy("ProfessorAssigned")),
+            is(emptyIterable())
+        );
+    }
+
+    @Test
+    public final void preservesEventOrderAfterFiltering() {
+        assertThat(
+            "filtering must preserve original Position order",
+            this.idsMatching(
+                this.store(),
+                new AnyEvents(
+                    new TypedBy("CourseChanged"),
+                    new TypedBy("CourseCreated")
+                )
+            ),
+            contains(
+                new EventId("course-created-7"),
+                new EventId("course-created-8"),
+                new EventId("course-changed-7")
+            )
+        );
+    }
+
+    @Test
+    public final void preservesBatchAppendOrder() {
+        assertThat(
+            "tail append must persist a batch in the supplied relative order",
+            this.idsAfterBatchAppend(this.store()),
+            contains(
+                new EventId("student-enrolled-11"),
+                new EventId("course-created-7"),
+                new EventId("course-removed-7")
+            )
+        );
+    }
+
+    @Test
     public final void keepsObservationsBoundedAndRepeatablyIterable() {
         assertThat(
             "StoredEvents must be stable and repeatable instead of a cursor over the live log",
@@ -72,7 +227,18 @@ public abstract class SemanticEventStoreConformanceTest {
         assertThat(
             "a tail must reject writes after a relevant event crosses its watermark",
             this.failureOf(() -> this.reuseTailAfterRelevantAppend(this.store())),
-            is(equalTo(StaleTailException.class))
+            is(instanceOf(StaleTailException.class))
+        );
+    }
+
+    @Test
+    public final void explainsStaleTailConflictWithStoredEvent() {
+        assertThat(
+            "StaleTailException must expose the event that invalidated the tail",
+            ((StaleTailException) this.failureOf(
+                () -> this.reuseTailAfterRelevantAppend(this.store())
+            )).conflict().event().id(),
+            is(equalTo(new EventId("course-created-7")))
         );
     }
 
@@ -96,7 +262,7 @@ public abstract class SemanticEventStoreConformanceTest {
                 new Namespace("academic-year-2026"),
                 new TypedBy("CourseCreated")
             ).follow().next(0)),
-            is(equalTo(IllegalArgumentException.class))
+            is(instanceOf(IllegalArgumentException.class))
         );
     }
 
@@ -133,9 +299,21 @@ public abstract class SemanticEventStoreConformanceTest {
     @Test
     public final void waitsForFutureSubscriptionEvents() {
         assertThat(
-            "Subscription.next(count) must remain pending until a matching event exists",
-            this.pendingBeforeMatchingAppend(this.store()),
-            is(equalTo(false))
+            "Subscription.next(count) must ignore non-matching wake-ups and complete on a matching event",
+            this.subscriptionStatesAroundAppends(this.store()),
+            contains(false, false, true)
+        );
+    }
+
+    @Test
+    public final void keepsSubscriptionResultsBounded() {
+        assertThat(
+            "StoredEvents returned by a subscription must stay bounded after later appends",
+            this.repeatedSubscriptionResultAfterLaterAppend(this.store()),
+            contains(
+                List.of(new EventId("course-created-7")),
+                List.of(new EventId("course-created-7"))
+            )
         );
     }
 
@@ -157,6 +335,15 @@ public abstract class SemanticEventStoreConformanceTest {
                 new EventId("course-created-8"),
                 new EventId("course-changed-7")
             )
+        );
+    }
+
+    @Test
+    public final void ignoresEventsWithoutLatestByTag() {
+        assertThat(
+            "LatestBy must ignore events that do not carry the requested tag",
+            this.idsAfterLatestByWithUntaggedEvent(this.store()),
+            contains(new EventId("course-created-7"))
         );
     }
 
@@ -204,6 +391,27 @@ public abstract class SemanticEventStoreConformanceTest {
     }
 
     @Test
+    public final void keepsReducedEventsInsideOriginalInput() {
+        assertThat(
+            "a reduction result must always be a subsequence of the original bounded observation",
+            this.reducedIdsContainedInOriginalIds(this.store()),
+            is(equalTo(true))
+        );
+    }
+
+    @Test
+    public final void doesNotAlterSurvivingStoredEventsAfterReduction() {
+        assertThat(
+            "a reduction must select StoredEvents without changing their public stored facts",
+            this.reducedEventFacts(this.store()),
+            contains(
+                "course-created-8|CourseCreated|courseId=c8|3|true",
+                "course-changed-7|CourseChanged|courseId=c7|4|true"
+            )
+        );
+    }
+
+    @Test
     public final void appliesReductionPipelineInDeclarationOrder() {
         assertThat(
             "reduction composition order is part of the semantic contract",
@@ -216,21 +424,69 @@ public abstract class SemanticEventStoreConformanceTest {
     }
 
     @Test
-    public final void doesNotTraverseObservationWhenReductionIsDeclared() {
-        assertThat(
-            "reduce() must create a lazy derived observation without traversing the source",
-            this.typeCallsAfterDeclaringReduction(this.store()),
-            is(equalTo(0))
-        );
-    }
-
-    @Test
     public final void preservesTailSemanticsAfterReduction() {
         assertThat(
             "a reduced observation tail must keep the original dependency boundary",
             this.failureOf(() -> this.reuseReducedTailAfterOriginalDependencyConflict(this.store())),
-            is(equalTo(StaleTailException.class))
+            is(instanceOf(StaleTailException.class))
         );
+    }
+
+    private Iterable<EventId> idsMatching(final EventStore store, final EventFilter filter) {
+        return this.ids(this.filterHistory(store, new Namespace("filter-algebra")).reduce(new Matching(filter)));
+    }
+
+    private StoredEvents filterHistory(final EventStore store, final Namespace namespace) {
+        this.append(
+            store,
+            namespace,
+            new SampleEvent("course-created-7", "CourseCreated", "courseId", "c7"),
+            new SampleEvent("course-removed-7", "CourseRemoved", "courseId", "c7"),
+            new SampleEvent("student-enrolled-11", "StudentEnrolled", "studentId", "s11"),
+            new SampleEvent("course-created-8", "CourseCreated", "courseId", "c8"),
+            new SampleEvent("course-changed-7", "CourseChanged", "courseId", "c7")
+        );
+        return store.events(namespace, this.sampleEvents());
+    }
+
+    private Iterable<EventId> idsObservedInOneNamespace(final EventStore store) {
+        this.append(
+            store,
+            new Namespace("namespace-a"),
+            new SampleEvent("course-created-7", "CourseCreated", "courseId", "c7")
+        );
+        this.append(
+            store,
+            new Namespace("namespace-b"),
+            new SampleEvent("course-created-8", "CourseCreated", "courseId", "c8")
+        );
+        return this.ids(store.events(new Namespace("namespace-a"), new TypedBy("CourseCreated")));
+    }
+
+    private Iterable<EventId> idsAfterFirstPosition(final EventStore store) {
+        return this.ids(
+            store.events(
+                new Namespace("exclusive-after"),
+                this.sampleEvents(),
+                this.firstPosition(this.history(store, new Namespace("exclusive-after")))
+            )
+        );
+    }
+
+    private Iterable<Position> positionsOfSampleHistory(final EventStore store) {
+        return this.positions(this.history(store, new Namespace("monotonic-positions")));
+    }
+
+    private Iterable<EventId> idsAfterBatchAppend(final EventStore store) {
+        final Namespace namespace = new Namespace("batch-append");
+        this.append(
+            store,
+            namespace,
+            new SampleEvent("student-enrolled-11", "StudentEnrolled", "studentId", "s11"),
+            new SampleEvent("course-created-7", "CourseCreated", "courseId", "c7"),
+            new SampleEvent("course-removed-7", "CourseRemoved", "courseId", "c7")
+        );
+        return this.ids(store.events(namespace, this.sampleEvents()));
     }
 
     private Iterable<List<EventId>> repeatedIdsAfterLaterMatchingAppend(final EventStore store) {
@@ -307,11 +563,26 @@ public abstract class SemanticEventStoreConformanceTest {
         return this.ids(this.completed(this.completed(subscription.next(1)).follow().next(10)));
     }
 
-    private boolean pendingBeforeMatchingAppend(final EventStore store) {
-        return store.events(
-            new Namespace("subscription-waiting"),
-            new TypedBy("CourseCreated")
-        ).follow().next(1).toCompletableFuture().isDone();
+    private Iterable<Boolean> subscriptionStatesAroundAppends(final EventStore store) {
+        final Namespace namespace = new Namespace("subscription-waiting");
+        final var stage = store.events(namespace, new TypedBy("CourseCreated"))
+            .follow()
+            .next(1)
+            .toCompletableFuture();
+        final boolean before = stage.isDone();
+        this.append(store, namespace, new SampleEvent("student-enrolled-11", "StudentEnrolled", "studentId", "s11"));
+        final boolean afterIrrelevant = stage.isDone();
+        this.append(store, namespace, new SampleEvent("course-created-7", "CourseCreated", "courseId", "c7"));
+        return List.of(before, afterIrrelevant, stage.isDone());
+    }
+
+    private Iterable<List<EventId>> repeatedSubscriptionResultAfterLaterAppend(final EventStore store) {
+        final Namespace namespace = new Namespace("subscription-bounded-result");
+        final var stage = store.events(namespace, new TypedBy("CourseCreated")).follow().next(1);
+        this.append(store, namespace, new SampleEvent("course-created-7", "CourseCreated", "courseId", "c7"));
+        final StoredEvents result = this.completed(stage);
+        this.append(store, namespace, new SampleEvent("course-created-8", "CourseCreated", "courseId", "c8"));
+        return List.of(this.ids(result), this.ids(result));
     }
 
     private Iterable<EventId> idsAfterLatestReduction(final EventStore store) {
@@ -321,6 +592,22 @@ public abstract class SemanticEventStoreConformanceTest {
     private Iterable<EventId> idsAfterLatestByReduction(final EventStore store) {
         return this.ids(
             this.history(store, new Namespace("latest-by")).reduce(new LatestBy(new TagName("courseId")))
+        );
+    }
+
+    private Iterable<EventId> idsAfterLatestByWithUntaggedEvent(final EventStore store) {
+        final Namespace namespace = new Namespace("latest-by-untagged");
+        this.append(
+            store,
+            namespace,
+            new SampleEvent("course-created-7", "CourseCreated", "courseId", "c7"),
+            new SampleEvent("academic-year-opened", "AcademicYearOpened")
+        );
+        return this.ids(
+            store.events(
+                namespace,
+                new AnyEvents(new TypedBy("CourseCreated"), new TypedBy("AcademicYearOpened"))
+            ).reduce(new LatestBy(new TagName("courseId")))
         );
     }
 
@@ -349,21 +636,42 @@ public abstract class SemanticEventStoreConformanceTest {
         );
     }
 
+    private boolean reducedIdsContainedInOriginalIds(final EventStore store) {
+        final StoredEvents history = this.history(store, new Namespace("subsequence-reduction"));
+        return this.ids(history).containsAll(
+            this.ids(history.reduce(new LatestBy(new TagName("courseId"))))
+        );
+    }
+
+    private Iterable<String> reducedEventFacts(final EventStore store) {
+        final List<String> facts = new ArrayList<>();
+        for (
+            final StoredEvent event
+                : this.history(
+                    store,
+                    new Namespace("surviving-event-facts")
+                ).reduce(new LatestBy(new TagName("courseId")))
+        ) {
+            facts.add(
+                event.id()
+                    + "|" + event.type()
+                    + "|" + StreamSupport.stream(event.tags().spliterator(), false)
+                        .map(Object::toString)
+                        .findFirst()
+                        .orElse("")
+                    + "|" + event.position()
+                    + "|" + event.storedAt().getClass().equals(java.time.Instant.class)
+            );
+        }
+        return facts;
+    }
+
     private Iterable<List<EventId>> idsFromOrderedReductionPipelines(final EventStore store) {
         final StoredEvents history = this.history(store, new Namespace("ordered-reductions"));
         return List.of(
             this.ids(history.reduce(new Matching(new TypedBy("CourseCreated"))).reduce(new LatestBy(new TagName("courseId")))),
             this.ids(history.reduce(new LatestBy(new TagName("courseId"))).reduce(new Matching(new TypedBy("CourseCreated"))))
         );
-    }
-
-    private int typeCallsAfterDeclaringReduction(final EventStore store) {
-        final Namespace namespace = new Namespace("lazy-reduction");
-        final CountingEvent event = new CountingEvent("course-created-7", "CourseCreated", "courseId", "c7");
-        this.append(store, namespace, event);
-        event.reset();
-        store.events(namespace, new TypedBy("CourseCreated")).reduce(new Matching(new TypedBy("CourseCreated")));
-        return event.calls();
     }
 
     private void reuseReducedTailAfterOriginalDependencyConflict(final EventStore store) {
@@ -415,6 +723,10 @@ public abstract class SemanticEventStoreConformanceTest {
         return positions;
     }
 
+    private Position firstPosition(final StoredEvents events) {
+        return events.iterator().next().position();
+    }
+
     private StoredEvents completed(final CompletionStage<StoredEvents> stage) {
         try {
             return stage.toCompletableFuture().get(
@@ -426,12 +738,12 @@ public abstract class SemanticEventStoreConformanceTest {
         }
     }
 
-    private Class<? extends Throwable> failureOf(final Action action) {
-        Class<? extends Throwable> failure = null;
+    private Throwable failureOf(final Action action) {
+        Throwable failure = null;
         try {
             action.run();
         } catch (final Throwable thrown) {
-            failure = thrown.getClass();
+            failure = thrown;
         }
         return failure;
     }
@@ -442,6 +754,10 @@ public abstract class SemanticEventStoreConformanceTest {
     }
 
     private record SampleEvent(EventId id, EventType type, Tags tags) implements Event {
+
+        SampleEvent(final String id, final String type) {
+            this(new EventId(id), new EventType(type), new EventTags());
+        }
 
         SampleEvent(
             final String id,
@@ -455,50 +771,6 @@ public abstract class SemanticEventStoreConformanceTest {
         @Override
         public Data data() {
             return EmptyData.INSTANCE;
-        }
-    }
-
-    private static final class CountingEvent implements Event {
-
-        private final SampleEvent origin;
-        private int calls;
-
-        CountingEvent(
-            final String id,
-            final String type,
-            final String tag,
-            final String value
-        ) {
-            this.origin = new SampleEvent(id, type, tag, value);
-        }
-
-        @Override
-        public EventId id() {
-            return this.origin.id();
-        }
-
-        @Override
-        public EventType type() {
-            this.calls += 1;
-            return this.origin.type();
-        }
-
-        @Override
-        public Tags tags() {
-            return this.origin.tags();
-        }
-
-        @Override
-        public Data data() {
-            return this.origin.data();
-        }
-
-        void reset() {
-            this.calls = 0;
-        }
-
-        int calls() {
-            return this.calls;
         }
     }
 

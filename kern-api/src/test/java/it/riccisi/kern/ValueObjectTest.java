@@ -91,6 +91,24 @@ final class ValueObjectTest {
         );
     }
 
+    @Test
+    void keepsTagNameRecordEquality() {
+        assertThat(
+            "TagName equality must be record value equality",
+            List.of(new TagName("courseId")),
+            is(equalTo(List.of(new TagName("courseId"))))
+        );
+    }
+
+    @Test
+    void keepsTagValueRecordEquality() {
+        assertThat(
+            "TagValue equality must be record value equality",
+            List.of(new TagValue("c7")),
+            is(equalTo(List.of(new TagValue("c7"))))
+        );
+    }
+
     private static Class<? extends Throwable> thrownBy(final Executable executable) {
         Class<? extends Throwable> thrown = null;
         try {

@@ -41,6 +41,15 @@ final class TagsTest {
         );
     }
 
+    @Test
+    void keepsEventTagRecordEquality() {
+        assertThat(
+            "EventTag equality must be record value equality",
+            new EventTag("courseId", "c7"),
+            is(equalTo(new EventTag("courseId", "c7")))
+        );
+    }
+
     private static Class<? extends Throwable> thrownBy(final Executable executable) {
         Class<? extends Throwable> thrown = null;
         try {
