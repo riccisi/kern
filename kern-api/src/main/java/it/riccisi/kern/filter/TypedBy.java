@@ -34,6 +34,6 @@ public final class TypedBy implements EventFilter {
      */
     @Override
     public <T> T describe(@NonNull final EventSelection<T> selection) {
-        return selection.typedBy(this.type);
+        return Objects.requireNonNull(selection, "EventSelection must not be null").typedBy(this.type);
     }
 }

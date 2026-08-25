@@ -13,6 +13,12 @@ import java.util.Objects;
 public final class Latest implements EventReduction {
 
     /**
+     * Builds a latest-event reduction.
+     */
+    public Latest() {
+    }
+
+    /**
      * Describes this reduction to an event-reduction interpreter.
      *
      * @param selection The interpretation boundary.
@@ -21,6 +27,6 @@ public final class Latest implements EventReduction {
      */
     @Override
     public <T> T describe(@NonNull final EventReductionSelection<T> selection) {
-        return selection.latest();
+        return Objects.requireNonNull(selection, "EventReductionSelection must not be null").latest();
     }
 }

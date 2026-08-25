@@ -1,19 +1,39 @@
 package it.riccisi.kern;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 final class PositionTest {
 
     @Test
     void ordersPositions() {
-        assertEquals(-1, Integer.signum(new Position(7L).compareTo(new Position(31L))));
+        assertThat(
+            "Position must preserve persisted event ordering",
+            Integer.signum(new Position(7L).compareTo(new Position(31L))),
+            is(equalTo(-1))
+        );
     }
 
     @Test
     void rejectsNegativePosition() {
-        assertThrows(IllegalArgumentException.class, () -> new Position(-1L));
+        assertThat(
+            "Position must reject negative coordinates",
+            PositionTest.thrownBy(() -> new Position(-1L)),
+            is(equalTo(IllegalArgumentException.class))
+        );
+    }
+
+    private static Class<? extends Throwable> thrownBy(final Executable executable) {
+        Class<? extends Throwable> thrown = null;
+        try {
+            executable.execute();
+        } catch (final Throwable failure) {
+            thrown = failure.getClass();
+        }
+        return thrown;
     }
 }

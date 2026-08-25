@@ -656,7 +656,13 @@ available artifacts until they are released.
 
 ## Build
 
-Kern requires Java 17 and Maven.
+Kern requires Java 24 and Maven.
+
+Make sure Maven is running on a JDK that supports Java 24:
+
+```sh
+mvn -version
+```
 
 ```sh
 mvn clean test

@@ -13,7 +13,17 @@ These ADRs are the primary architectural authority for the project.
 This document defines permanent rules for AI agents and contributors working
 on the repository.
 
----
+### Build e Java
+
+- The project requires Java 24 to compile and run the tests.
+- On the user’s Mac, the global default may remain a different version of Java, such as Java 17.
+- To run Maven in this repository without changing the global default, use the JDK 24 installed via Homebrew:
+
+```shell
+JAVA_HOME=/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home ./mvnw verify
+```
+
+- Do not modify `~/.zshrc`, `PATH`, the global `JAVA_HOME` or the symlinks in `/Library/Java/JavaVirtualMachines` just to run the project’s tests.
 
 ## 2. Architectural authority
 
@@ -74,6 +84,9 @@ It does not define it.
 ## 4. Object-oriented design
 
 Kern deliberately follows a strongly object-oriented design style.
+
+- Always consult the wiki on good OO modelling at `/Users/simone/Library/Mobile Documents/iCloud~md~obsidian/Documents/OO/wiki` before proposing or implementing architectural refactorings, domain modelling, OO contracts and significant design choices.
+- Use the OO wiki as the primary reference for cohesion, immutability, decoration, naming, coupling and object responsibilities.
 
 ### Objects represent concepts
 
@@ -168,15 +181,23 @@ Do not introduce them simply because construction involves several objects.
 If construction becomes excessively complicated, first investigate whether the
 object has too many responsibilities.
 
-Lombok may be used to remove mechanical constructor/null-check boilerplate when
-it does not obscure semantics.
+### Lombok
 
-Typical acceptable usage includes:
+- Use Lombok to reduce mechanical boilerplate when it improves readability without compromising the object-oriented model.
+- Prefer `@RequiredArgsConstructor` for trivial primary constructors of immutable classes with `final` dependencies.
+- Prefer `@NonNull` on `final` fields and on parameters of concrete methods when it replaces trivial null checks without obscuring the public contract.
+- In abstract contracts or interfaces without a body, do not treat `@NonNull` as runtime enforcement: in such cases, it serves as documentation of the contract, not as a substitute for executable logic.
+- Do not introduce Lombok if the benefit is minimal or if the annotation makes the code less explicit than a hand-written constructor or method.
+- Do not use Lombok to generate patterns that undermine OO discipline, in particular `@Data`, `@Setter`, superfluous builders, or excessive getters/setters on domain objects.
+- The aim is to eliminate boilerplate, not to mask anemic objects, ambiguous contracts, avoidable mutability or poorly distributed responsibilities.
 
-    @RequiredArgsConstructor
-    @NonNull
+### Cactoos
 
-Do not use Lombok to generate large mutable JavaBean-style objects.
+- Consider `org.cactoos:cactoos` before introducing custom utilities or equivalent solutions based on standard Java procedural helpers, particularly when working with text, scalars, iterables, maps, streams or small, basic transformations.
+- Favour Cactoos’ abstractions when they allow you to express object responsibilities, composition and lazy evaluation in a way that is more consistent with the project’s model.
+- Do not introduce new static utilities or ad hoc wrappers if Cactoos already provides a suitable and readable object for the problem.
+- Do not use Cactoos dogmatically: if using the library makes the code less clear, more contrived or at odds with the module’s local idioms, opt for the simplest and most consistent solution.
+- The aim is not to mechanically replace the entire standard Java library, but to avoid procedural style, duplication of primitive utilities and unnecessary custom solutions when the project already has a well-established OO alternative.
 
 ---
 
@@ -755,6 +776,43 @@ RocksDB-specific tests must additionally cover:
 
 Use property-based testing where it provides meaningful coverage, especially for
 ordered indexes and physical key encoding.
+
+### JUnit test layout
+
+JUnit tests must act as precise diagnostics for the production object that most
+likely broke.
+
+Name unit test classes after the live class they protect, using the `Test`
+suffix in the same package under `src/test/java`.
+
+For example:
+
+    src/main/java/it/riccisi/kern/EventTags.java
+    src/test/java/it/riccisi/kern/EventTagsTest.java
+
+Use the `ITCase` suffix for Maven integration tests.
+
+If an integration test belongs to one live class, keep the same mapping:
+
+    StoredEvents.java
+    StoredEventsITCase.java
+
+If an integration test exercises a scenario that does not map to one live
+class, place it under a test-only `it` package and use a scenario name:
+
+    src/test/java/it/riccisi/kern/it/ConcurrentAppendITCase.java
+
+Do not create test-only support packages full of utilities, helpers, builders,
+fixtures, or shared static setup methods.
+
+Test classes should contain test methods only. If a test needs reusable
+prerequisites, model them as small fake objects with explicit responsibilities
+and test them like other objects, or use narrowly scoped JUnit mechanisms only
+when they are simpler and do not hide the object under test.
+
+Assertions should carry enough diagnostic information, either through the test
+method name and assertion shape or through an explicit assertion message, for a
+failing test to point quickly to the broken behavior.
 
 ---
 
