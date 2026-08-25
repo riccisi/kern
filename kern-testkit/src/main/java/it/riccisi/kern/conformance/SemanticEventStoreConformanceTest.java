@@ -159,13 +159,8 @@ public abstract class SemanticEventStoreConformanceTest {
     public final void assignsMonotonicPositions() {
         assertThat(
             "stored events must appear in monotonically increasing Position order",
-            this.positionsOfSampleHistory(this.store()),
-            contains(
-                new Position(1L),
-                new Position(2L),
-                new Position(3L),
-                new Position(4L)
-            )
+            this.sampleHistoryPositionsAreStrictlyIncreasing(this.store()),
+            is(equalTo(true))
         );
     }
 
@@ -433,10 +428,12 @@ public abstract class SemanticEventStoreConformanceTest {
     }
 
     private Iterable<EventId> idsMatching(final EventStore store, final EventFilter filter) {
-        return this.ids(this.filterHistory(store, new Namespace("filter-algebra")).reduce(new Matching(filter)));
+        final Namespace namespace = new Namespace("filter-algebra");
+        this.populateFilterHistory(store, namespace);
+        return this.ids(store.events(namespace, filter));
     }
 
-    private StoredEvents filterHistory(final EventStore store, final Namespace namespace) {
+    private void populateFilterHistory(final EventStore store, final Namespace namespace) {
         this.append(
             store,
             namespace,
@@ -446,7 +443,6 @@ public abstract class SemanticEventStoreConformanceTest {
             new SampleEvent("course-created-8", "CourseCreated", "courseId", "c8"),
             new SampleEvent("course-changed-7", "CourseChanged", "courseId", "c7")
         );
-        return store.events(namespace, this.sampleEvents());
     }
 
     private Iterable<EventId> idsObservedInOneNamespace(final EventStore store) {
@@ -473,8 +469,8 @@ public abstract class SemanticEventStoreConformanceTest {
         );
     }
 
-    private Iterable<Position> positionsOfSampleHistory(final EventStore store) {
-        return this.positions(this.history(store, new Namespace("monotonic-positions")));
+    private boolean sampleHistoryPositionsAreStrictlyIncreasing(final EventStore store) {
+        return this.strictlyIncreasing(this.positions(this.history(store, new Namespace("monotonic-positions"))));
     }
 
     private Iterable<EventId> idsAfterBatchAppend(final EventStore store) {
@@ -638,7 +634,8 @@ public abstract class SemanticEventStoreConformanceTest {
 
     private boolean reducedIdsContainedInOriginalIds(final EventStore store) {
         final StoredEvents history = this.history(store, new Namespace("subsequence-reduction"));
-        return this.ids(history).containsAll(
+        return this.subsequence(
+            this.ids(history),
             this.ids(history.reduce(new LatestBy(new TagName("courseId"))))
         );
     }
@@ -725,6 +722,24 @@ public abstract class SemanticEventStoreConformanceTest {
 
     private Position firstPosition(final StoredEvents events) {
         return events.iterator().next().position();
+    }
+
+    private boolean strictlyIncreasing(final List<Position> positions) {
+        boolean increasing = true;
+        for (int idx = 1; idx < positions.size(); idx += 1) {
+            increasing = increasing && positions.get(idx - 1).compareTo(positions.get(idx)) < 0;
+        }
+        return increasing;
+    }
+
+    private boolean subsequence(final List<EventId> input, final List<EventId> output) {
+        int pos = 0;
+        for (final EventId event : input) {
+            if (pos < output.size() && event.equals(output.get(pos))) {
+                pos += 1;
+            }
+        }
+        return pos == output.size();
     }
 
     private StoredEvents completed(final CompletionStage<StoredEvents> stage) {
