@@ -14,6 +14,7 @@
 
     <modules>
         <module>kern-api</module>
+        <module>kern-testkit</module>
     </modules>
 
     <properties>
@@ -23,6 +24,7 @@
         <cactoos.version>0.61.0</cactoos.version>
         <hamcrest.version>3.0</hamcrest.version>
         <junit.version>5.13.4</junit.version>
+        <gitflow.maven.plugin.version>1.21.0</gitflow.maven.plugin.version>
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
@@ -56,6 +58,28 @@
     </dependencyManagement>
 
     <build>
+        <plugins>
+            <plugin>
+                <groupId>com.amashchenko.maven.plugin</groupId>
+                <artifactId>gitflow-maven-plugin</artifactId>
+                <version>${gitflow.maven.plugin.version}</version>
+                <configuration>
+                    <skipFeatureVersion>true</skipFeatureVersion>
+                    <installProject>false</installProject>
+                    <pushRemote>false</pushRemote>
+                    <gitFlowConfig>
+                        <productionBranch>main</productionBranch>
+                        <developmentBranch>main</developmentBranch>
+                        <featureBranchPrefix>feature/</featureBranchPrefix>
+                        <releaseBranchPrefix>release/</releaseBranchPrefix>
+                        <hotfixBranchPrefix>hotfix/</hotfixBranchPrefix>
+                        <supportBranchPrefix>support/</supportBranchPrefix>
+                        <versionTagPrefix>v</versionTagPrefix>
+                        <origin>origin</origin>
+                    </gitFlowConfig>
+                </configuration>
+            </plugin>
+        </plugins>
         <pluginManagement>
             <plugins>
                 <plugin>

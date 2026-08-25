@@ -27,6 +27,15 @@ final class PositionTest {
         );
     }
 
+    @Test
+    void startsAtBeginningBoundary() {
+        assertThat(
+            "Position.beginning() must represent the logical boundary before stored events",
+            Position.beginning(),
+            is(equalTo(new Position(0L)))
+        );
+    }
+
     private static Class<? extends Throwable> thrownBy(final Executable executable) {
         Class<? extends Throwable> thrown = null;
         try {
