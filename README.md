@@ -22,6 +22,7 @@ EventStore
     | events(namespace, filter, after)
     v
 StoredEvents
+    |_____________ 
     |             |
     | tail()      | follow()
     v             v
