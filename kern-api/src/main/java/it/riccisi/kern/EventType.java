@@ -9,42 +9,17 @@ import org.cactoos.Text;
  * <p>The event type answers what happened. It is distinct from
  * {@link Metadata}, which describes the structure of the event data.</p>
  */
-public final class EventType implements Text {
+public final class EventType extends SemanticAtom {
 
-    private final String origin;
+    private static final int MAXIMUM_LENGTH = 128;
 
-    /**
-     * Builds an event type.
-     *
-     * @param origin The event type text.
-     * @throws NullPointerException     When {@code origin} is {@code null}.
-     * @throws IllegalArgumentException When {@code origin} is blank.
-     */
     public EventType(@NonNull final String origin) {
-        if (origin.isBlank()) {
-            throw new IllegalArgumentException("EventType must not be blank");
-        }
-        this.origin = origin;
-    }
-
-    @Override
-    public String asString() {
-        return this.origin;
-    }
-
-    @Override
-    public boolean equals(final Object other) {
-        return this == other || other instanceof EventType that
-            && this.origin.equals(that.origin);
-    }
-
-    @Override
-    public int hashCode() {
-        return this.origin.hashCode();
-    }
-
-    @Override
-    public String toString() {
-        return this.origin;
+        super(
+            new Identifier(
+                origin,
+                EventType.MAXIMUM_LENGTH,
+                "EventType"
+            )
+        );
     }
 }

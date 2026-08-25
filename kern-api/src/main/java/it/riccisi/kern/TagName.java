@@ -6,42 +6,17 @@ import org.cactoos.Text;
 /**
  * Name of an application-defined event tag.
  */
-public final class TagName implements Text {
+public final class TagName extends SemanticAtom {
 
-    private final String origin;
+    private static final int MAXIMUM_LENGTH = 64;
 
-    /**
-     * Builds a tag name.
-     *
-     * @param origin The tag name text.
-     * @throws NullPointerException     When {@code origin} is {@code null}.
-     * @throws IllegalArgumentException When {@code origin} is blank.
-     */
     public TagName(@NonNull final String origin) {
-        if (origin.isBlank()) {
-            throw new IllegalArgumentException("TagName must not be blank");
-        }
-        this.origin = origin;
-    }
-
-    @Override
-    public String asString() {
-        return this.origin;
-    }
-
-    @Override
-    public boolean equals(final Object other) {
-        return this == other || other instanceof TagName that
-            && this.origin.equals(that.origin);
-    }
-
-    @Override
-    public int hashCode() {
-        return this.origin.hashCode();
-    }
-
-    @Override
-    public String toString() {
-        return this.origin;
+        super(
+            new Identifier(
+                origin,
+                TagName.MAXIMUM_LENGTH,
+                "TagName"
+            )
+        );
     }
 }

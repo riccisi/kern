@@ -6,42 +6,17 @@ import org.cactoos.Text;
 /**
  * Canonical value of an application-defined event tag.
  */
-public final class TagValue implements Text {
+public final class TagValue extends SemanticAtom {
 
-    private final String origin;
+    private static final int MAXIMUM_BYTES = 1024;
 
-    /**
-     * Builds a tag value.
-     *
-     * @param origin The tag value text.
-     * @throws NullPointerException     When {@code origin} is {@code null}.
-     * @throws IllegalArgumentException When {@code origin} is blank.
-     */
     public TagValue(@NonNull final String origin) {
-        if (origin.isBlank()) {
-            throw new IllegalArgumentException("TagValue must not be blank");
-        }
-        this.origin = origin;
-    }
-
-    @Override
-    public String asString() {
-        return this.origin;
-    }
-
-    @Override
-    public boolean equals(final Object other) {
-        return this == other || other instanceof TagValue that
-            && this.origin.equals(that.origin);
-    }
-
-    @Override
-    public int hashCode() {
-        return this.origin.hashCode();
-    }
-
-    @Override
-    public String toString() {
-        return this.origin;
+        super(
+            new BoundedText(
+                origin,
+                TagValue.MAXIMUM_BYTES,
+                "TagValue"
+            )
+        );
     }
 }
