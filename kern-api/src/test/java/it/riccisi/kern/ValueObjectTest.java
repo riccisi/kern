@@ -1,10 +1,16 @@
 package it.riccisi.kern;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
+import org.cactoos.Text;
+import org.cactoos.bytes.BytesOf;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
@@ -29,19 +35,31 @@ final class ValueObjectTest {
     }
 
     @Test
-    void preservesSemanticText() {
+    void composesTextualAtomsAsText() throws Exception {
         assertThat(
-            "EventType must expose the semantic text it represents",
-            new EventType("CourseCreated").value(),
-            is(equalTo("CourseCreated"))
+            "textual semantic atoms must compose with Cactoos Text boundaries",
+            ValueObjectTest.texts(
+                new EventId("course-created-7"),
+                new EventType("CourseCreated"),
+                new NamespaceId("academic-year-2026"),
+                new TagName("courseId"),
+                new TagValue("c7")
+            ),
+            contains(
+                "course-created-7",
+                "CourseCreated",
+                "academic-year-2026",
+                "courseId",
+                "c7"
+            )
         );
     }
 
     @Test
     void rejectsBlankNamespace() {
         assertThat(
-            "Namespace must reject blank text",
-            ValueObjectTest.thrownBy(() -> new Namespace(" ")),
+            "NamespaceId must reject blank text",
+            ValueObjectTest.thrownBy(() -> new NamespaceId(" ")),
             is(equalTo(IllegalArgumentException.class))
         );
     }
@@ -74,39 +92,56 @@ final class ValueObjectTest {
     }
 
     @Test
-    void keepsNamespaceRecordEquality() {
+    void keepsNamespaceIdSemanticEquality() {
         assertThat(
-            "Namespace equality must be record value equality",
-            List.of(new Namespace("academic-year-2026")),
-            is(equalTo(List.of(new Namespace("academic-year-2026"))))
+            "NamespaceId equality must be semantic value equality",
+            List.of(new NamespaceId("academic-year-2026")),
+            is(equalTo(List.of(new NamespaceId("academic-year-2026"))))
         );
     }
 
     @Test
-    void keepsRecordEquality() {
+    void keepsEventTypeSemanticEquality() {
         assertThat(
-            "EventType equality must be record value equality",
+            "EventType equality must be semantic value equality",
             List.of(new EventType("CourseCreated")),
             is(equalTo(List.of(new EventType("CourseCreated"))))
         );
     }
 
     @Test
-    void keepsTagNameRecordEquality() {
+    void keepsTagNameSemanticEquality() {
         assertThat(
-            "TagName equality must be record value equality",
+            "TagName equality must be semantic value equality",
             List.of(new TagName("courseId")),
             is(equalTo(List.of(new TagName("courseId"))))
         );
     }
 
     @Test
-    void keepsTagValueRecordEquality() {
+    void keepsTagValueSemanticEquality() {
         assertThat(
-            "TagValue equality must be record value equality",
+            "TagValue equality must be semantic value equality",
             List.of(new TagValue("c7")),
             is(equalTo(List.of(new TagValue("c7"))))
         );
+    }
+
+    @Test
+    void keepsSemanticTypeSpecificEquality() {
+        assertThat(
+            "textual semantic atoms with different semantic types must not be equal",
+            new EventId("CourseCreated"),
+            is(not(equalTo(new EventType("CourseCreated"))))
+        );
+    }
+
+    private static List<String> texts(final Text... texts) throws Exception {
+        final List<String> results = new ArrayList<>();
+        for (final Text text : texts) {
+            results.add(new String(new BytesOf(text).asBytes(), StandardCharsets.UTF_8));
+        }
+        return results;
     }
 
     private static Class<? extends Throwable> thrownBy(final Executable executable) {

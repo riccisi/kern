@@ -18,7 +18,7 @@ import it.riccisi.kern.EventId;
 import it.riccisi.kern.EventStore;
 import it.riccisi.kern.EventType;
 import it.riccisi.kern.Metadata;
-import it.riccisi.kern.Namespace;
+import it.riccisi.kern.NamespaceId;
 import it.riccisi.kern.Position;
 import it.riccisi.kern.StaleTailException;
 import it.riccisi.kern.StoredEvent;
@@ -254,7 +254,7 @@ public abstract class SemanticEventStoreConformanceTest {
         assertThat(
             "Subscription.next(count) must reject non-positive demand",
             this.failureOf(() -> this.store().events(
-                new Namespace("academic-year-2026"),
+                new NamespaceId("academic-year-2026"),
                 new TypedBy("CourseCreated")
             ).follow().next(0)),
             is(instanceOf(IllegalArgumentException.class))
@@ -428,12 +428,12 @@ public abstract class SemanticEventStoreConformanceTest {
     }
 
     private Iterable<EventId> idsMatching(final EventStore store, final EventFilter filter) {
-        final Namespace namespace = new Namespace("filter-algebra");
+        final NamespaceId namespace = new NamespaceId("filter-algebra");
         this.populateFilterHistory(store, namespace);
         return this.ids(store.events(namespace, filter));
     }
 
-    private void populateFilterHistory(final EventStore store, final Namespace namespace) {
+    private void populateFilterHistory(final EventStore store, final NamespaceId namespace) {
         this.append(
             store,
             namespace,
@@ -448,33 +448,33 @@ public abstract class SemanticEventStoreConformanceTest {
     private Iterable<EventId> idsObservedInOneNamespace(final EventStore store) {
         this.append(
             store,
-            new Namespace("namespace-a"),
+            new NamespaceId("namespace-a"),
             new SampleEvent("course-created-7", "CourseCreated", "courseId", "c7")
         );
         this.append(
             store,
-            new Namespace("namespace-b"),
+            new NamespaceId("namespace-b"),
             new SampleEvent("course-created-8", "CourseCreated", "courseId", "c8")
         );
-        return this.ids(store.events(new Namespace("namespace-a"), new TypedBy("CourseCreated")));
+        return this.ids(store.events(new NamespaceId("namespace-a"), new TypedBy("CourseCreated")));
     }
 
     private Iterable<EventId> idsAfterFirstPosition(final EventStore store) {
         return this.ids(
             store.events(
-                new Namespace("exclusive-after"),
+                new NamespaceId("exclusive-after"),
                 this.sampleEvents(),
-                this.firstPosition(this.history(store, new Namespace("exclusive-after")))
+                this.firstPosition(this.history(store, new NamespaceId("exclusive-after")))
             )
         );
     }
 
     private boolean sampleHistoryPositionsAreStrictlyIncreasing(final EventStore store) {
-        return this.strictlyIncreasing(this.positions(this.history(store, new Namespace("monotonic-positions"))));
+        return this.strictlyIncreasing(this.positions(this.history(store, new NamespaceId("monotonic-positions"))));
     }
 
     private Iterable<EventId> idsAfterBatchAppend(final EventStore store) {
-        final Namespace namespace = new Namespace("batch-append");
+        final NamespaceId namespace = new NamespaceId("batch-append");
         this.append(
             store,
             namespace,
@@ -486,7 +486,7 @@ public abstract class SemanticEventStoreConformanceTest {
     }
 
     private Iterable<List<EventId>> repeatedIdsAfterLaterMatchingAppend(final EventStore store) {
-        final Namespace namespace = new Namespace("bounded-observation");
+        final NamespaceId namespace = new NamespaceId("bounded-observation");
         this.append(
             store,
             namespace,
@@ -502,14 +502,14 @@ public abstract class SemanticEventStoreConformanceTest {
     }
 
     private void reuseTailAfterRelevantAppend(final EventStore store) {
-        final Namespace namespace = new Namespace("stale-tail");
+        final NamespaceId namespace = new NamespaceId("stale-tail");
         final StoredEvents history = store.events(namespace, new TypedBy("CourseCreated"));
         history.tail().append(new SampleEvent("course-created-7", "CourseCreated", "courseId", "c7"));
         history.tail().append(new SampleEvent("course-created-8", "CourseCreated", "courseId", "c8"));
     }
 
     private Iterable<EventId> idsAfterIrrelevantTailReuse(final EventStore store) {
-        final Namespace namespace = new Namespace("tail-boundary");
+        final NamespaceId namespace = new NamespaceId("tail-boundary");
         final StoredEvents history = store.events(namespace, new TypedBy("CourseCreated"));
         history.tail().append(new SampleEvent("student-enrolled-11", "StudentEnrolled", "studentId", "s11"));
         history.tail().append(new SampleEvent("course-created-8", "CourseCreated", "courseId", "c8"));
@@ -517,7 +517,7 @@ public abstract class SemanticEventStoreConformanceTest {
     }
 
     private int subscriptionResultSize(final EventStore store, final int demand) {
-        final Namespace namespace = new Namespace("subscription-size");
+        final NamespaceId namespace = new NamespaceId("subscription-size");
         final CompletionStage<StoredEvents> next = store.events(
             namespace,
             new TypedBy("CourseCreated")
@@ -533,7 +533,7 @@ public abstract class SemanticEventStoreConformanceTest {
     }
 
     private Iterable<List<EventId>> repeatedSubscriptionIds(final EventStore store) {
-        final Namespace namespace = new Namespace("subscription-repeat");
+        final NamespaceId namespace = new NamespaceId("subscription-repeat");
         final var subscription = store.events(namespace, new TypedBy("CourseCreated")).follow();
         this.append(
             store,
@@ -548,7 +548,7 @@ public abstract class SemanticEventStoreConformanceTest {
     }
 
     private Iterable<EventId> idsAfterFollowingFirstSubscriptionResult(final EventStore store) {
-        final Namespace namespace = new Namespace("subscription-continuation");
+        final NamespaceId namespace = new NamespaceId("subscription-continuation");
         final var subscription = store.events(namespace, new TypedBy("CourseCreated")).follow();
         this.append(
             store,
@@ -560,7 +560,7 @@ public abstract class SemanticEventStoreConformanceTest {
     }
 
     private Iterable<Boolean> subscriptionStatesAroundAppends(final EventStore store) {
-        final Namespace namespace = new Namespace("subscription-waiting");
+        final NamespaceId namespace = new NamespaceId("subscription-waiting");
         final var stage = store.events(namespace, new TypedBy("CourseCreated"))
             .follow()
             .next(1)
@@ -573,7 +573,7 @@ public abstract class SemanticEventStoreConformanceTest {
     }
 
     private Iterable<List<EventId>> repeatedSubscriptionResultAfterLaterAppend(final EventStore store) {
-        final Namespace namespace = new Namespace("subscription-bounded-result");
+        final NamespaceId namespace = new NamespaceId("subscription-bounded-result");
         final var stage = store.events(namespace, new TypedBy("CourseCreated")).follow().next(1);
         this.append(store, namespace, new SampleEvent("course-created-7", "CourseCreated", "courseId", "c7"));
         final StoredEvents result = this.completed(stage);
@@ -582,17 +582,17 @@ public abstract class SemanticEventStoreConformanceTest {
     }
 
     private Iterable<EventId> idsAfterLatestReduction(final EventStore store) {
-        return this.ids(this.history(store, new Namespace("latest")).reduce(new Latest()));
+        return this.ids(this.history(store, new NamespaceId("latest")).reduce(new Latest()));
     }
 
     private Iterable<EventId> idsAfterLatestByReduction(final EventStore store) {
         return this.ids(
-            this.history(store, new Namespace("latest-by")).reduce(new LatestBy(new TagName("courseId")))
+            this.history(store, new NamespaceId("latest-by")).reduce(new LatestBy(new TagName("courseId")))
         );
     }
 
     private Iterable<EventId> idsAfterLatestByWithUntaggedEvent(final EventStore store) {
-        final Namespace namespace = new Namespace("latest-by-untagged");
+        final NamespaceId namespace = new NamespaceId("latest-by-untagged");
         this.append(
             store,
             namespace,
@@ -609,31 +609,31 @@ public abstract class SemanticEventStoreConformanceTest {
 
     private Iterable<EventId> idsAfterMatchingReduction(final EventStore store) {
         return this.ids(
-            this.history(store, new Namespace("matching")).reduce(new Matching(new TypedBy("CourseCreated")))
+            this.history(store, new NamespaceId("matching")).reduce(new Matching(new TypedBy("CourseCreated")))
         );
     }
 
     private Iterable<EventId> idsAfterExcludingReduction(final EventStore store) {
         return this.ids(
-            this.history(store, new Namespace("excluding")).reduce(new Excluding(new TypedBy("CourseRemoved")))
+            this.history(store, new NamespaceId("excluding")).reduce(new Excluding(new TypedBy("CourseRemoved")))
         );
     }
 
     private Iterable<EventId> idsAfterEmptyLatestReduction(final EventStore store) {
         return this.ids(store.events(
-            new Namespace("empty-latest"),
+            new NamespaceId("empty-latest"),
             new TypedBy("CourseCreated")
         ).reduce(new Latest()));
     }
 
     private Iterable<Position> positionsAfterLatestByReduction(final EventStore store) {
         return this.positions(
-            this.history(store, new Namespace("latest-by-order")).reduce(new LatestBy(new TagName("courseId")))
+            this.history(store, new NamespaceId("latest-by-order")).reduce(new LatestBy(new TagName("courseId")))
         );
     }
 
     private boolean reducedIdsContainedInOriginalIds(final EventStore store) {
-        final StoredEvents history = this.history(store, new Namespace("subsequence-reduction"));
+        final StoredEvents history = this.history(store, new NamespaceId("subsequence-reduction"));
         return this.subsequence(
             this.ids(history),
             this.ids(history.reduce(new LatestBy(new TagName("courseId"))))
@@ -646,7 +646,7 @@ public abstract class SemanticEventStoreConformanceTest {
             final StoredEvent event
                 : this.history(
                     store,
-                    new Namespace("surviving-event-facts")
+                    new NamespaceId("surviving-event-facts")
                 ).reduce(new LatestBy(new TagName("courseId")))
         ) {
             facts.add(
@@ -664,7 +664,7 @@ public abstract class SemanticEventStoreConformanceTest {
     }
 
     private Iterable<List<EventId>> idsFromOrderedReductionPipelines(final EventStore store) {
-        final StoredEvents history = this.history(store, new Namespace("ordered-reductions"));
+        final StoredEvents history = this.history(store, new NamespaceId("ordered-reductions"));
         return List.of(
             this.ids(history.reduce(new Matching(new TypedBy("CourseCreated"))).reduce(new LatestBy(new TagName("courseId")))),
             this.ids(history.reduce(new LatestBy(new TagName("courseId"))).reduce(new Matching(new TypedBy("CourseCreated"))))
@@ -672,14 +672,14 @@ public abstract class SemanticEventStoreConformanceTest {
     }
 
     private void reuseReducedTailAfterOriginalDependencyConflict(final EventStore store) {
-        final Namespace namespace = new Namespace("reduced-tail");
+        final NamespaceId namespace = new NamespaceId("reduced-tail");
         final StoredEvents history = this.history(store, namespace);
         final StoredEvents reduced = history.reduce(new Matching(new TypedBy("CourseCreated")));
         this.append(store, namespace, new SampleEvent("course-removed-8", "CourseRemoved", "courseId", "c8"));
         reduced.tail().append(new SampleEvent("course-created-9", "CourseCreated", "courseId", "c9"));
     }
 
-    private StoredEvents history(final EventStore store, final Namespace namespace) {
+    private StoredEvents history(final EventStore store, final NamespaceId namespace) {
         this.append(
             store,
             namespace,
@@ -691,7 +691,7 @@ public abstract class SemanticEventStoreConformanceTest {
         return store.events(namespace, this.sampleEvents());
     }
 
-    private void append(final EventStore store, final Namespace namespace, final Event... events) {
+    private void append(final EventStore store, final NamespaceId namespace, final Event... events) {
         store.events(namespace, this.sampleEvents()).tail().append(events);
     }
 

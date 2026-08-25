@@ -4,6 +4,20 @@
 
 **Accepted**
 
+## Superseded refinements
+
+ADR 007 refines the primitive-like semantic values described here as
+**semantic atoms**. In the current public API, textual atoms such as `EventId`,
+`EventType`, `TagName`, `TagValue`, and `NamespaceId` implement Cactoos
+`Text` and do not expose primitive `value()` accessors. `Position` extends
+`Number` and remains ordered by event-log position without promising numeric
+contiguity.
+
+ADR 007 also renames the identifier used to address an event-log partition
+from `Namespace` to `NamespaceId`. Historical references to `Namespace` in this
+ADR describe the same semantic boundary; the current API type is `NamespaceId`
+unless a future behavioral `Namespace` abstraction is introduced.
+
 ## Purpose
 
 This ADR defines the semantic model and public API of Kern.

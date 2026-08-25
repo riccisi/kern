@@ -36,6 +36,15 @@ final class PositionTest {
         );
     }
 
+    @Test
+    void behavesAsNumericSemanticAtom() {
+        assertThat(
+            "Position must refine Number for terminal numeric representation",
+            new Position(31L).longValue(),
+            is(equalTo(31L))
+        );
+    }
+
     private static Class<? extends Throwable> thrownBy(final Executable executable) {
         Class<? extends Throwable> thrown = null;
         try {

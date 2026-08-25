@@ -44,7 +44,7 @@ final class TagsTest {
     @Test
     void keepsEventTagRecordEquality() {
         assertThat(
-            "EventTag equality must be record value equality",
+            "EventTag equality must remain semantic value equality",
             new EventTag("courseId", "c7"),
             is(equalTo(new EventTag("courseId", "c7")))
         );
