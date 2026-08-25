@@ -3,7 +3,7 @@ package it.riccisi.kern;
 /**
  * Long-lived semantic capability for observing persisted events.
  *
- * <p>The store is addressed by {@link Namespace}. Each observation returns a
+ * <p>The store is addressed by {@link NamespaceId}. Each observation returns a
  * bounded {@link StoredEvents} object whose continuations preserve the exact
  * upper boundary of that observation.</p>
  */
@@ -16,21 +16,21 @@ public interface EventStore {
      * {@code after} and up to a consistent hidden watermark captured when the
      * observation is created.</p>
      *
-     * @param namespace The logical event log to observe.
+     * @param namespace The logical event log identifier to observe.
      * @param filter The semantic relevance boundary.
      * @param after The exclusive lower position boundary.
      * @return A bounded observation of matching persisted events.
      */
-    StoredEvents events(Namespace namespace, EventFilter filter, Position after);
+    StoredEvents events(NamespaceId namespace, EventFilter filter, Position after);
 
     /**
      * Observes matching stored events in a namespace from the beginning.
      *
-     * @param namespace The logical event log to observe.
+     * @param namespace The logical event log identifier to observe.
      * @param filter The semantic relevance boundary.
      * @return A bounded observation of matching persisted events.
      */
-    default StoredEvents events(final Namespace namespace, final EventFilter filter) {
+    default StoredEvents events(final NamespaceId namespace, final EventFilter filter) {
         return this.events(namespace, filter, Position.beginning());
     }
 
@@ -42,7 +42,7 @@ public interface EventStore {
      * @return A bounded observation of matching persisted events.
      */
     default StoredEvents events(final EventFilter filter) {
-        return this.events(Namespace.DEFAULT, filter);
+        return this.events(NamespaceId.DEFAULT, filter);
     }
 
     /**
@@ -54,6 +54,6 @@ public interface EventStore {
      * @return A bounded observation of matching persisted events.
      */
     default StoredEvents events(final EventFilter filter, final Position after) {
-        return this.events(Namespace.DEFAULT, filter, after);
+        return this.events(NamespaceId.DEFAULT, filter, after);
     }
 }

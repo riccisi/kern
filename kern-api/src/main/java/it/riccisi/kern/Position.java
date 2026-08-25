@@ -1,28 +1,34 @@
 package it.riccisi.kern;
 
+import java.io.Serial;
+
 /**
  * A point in a namespace-local logical event log.
  *
  * <p>Positions provide stable total ordering of stored events. They may
  * represent logical points that are not occupied by events, such as
  * {@link #beginning()}, and clients must not rely on numeric contiguity.</p>
- *
- * @param value The position value.
  */
-public record Position(long value) implements Comparable<Position> {
+public final class Position extends Number implements Comparable<Position> {
+
+    @Serial
+    private static final long serialVersionUID = -1840272228071949268L;
 
     private static final Position BEGINNING = new Position(0L);
+
+    private final long origin;
 
     /**
      * Builds a position.
      *
-     * @param value The position value.
-     * @throws IllegalArgumentException When {@code value} is negative.
+     * @param origin The position value.
+     * @throws IllegalArgumentException When {@code origin} is negative.
      */
-    public Position {
-        if (value < 0L) {
+    public Position(final long origin) {
+        if (origin < 0L) {
             throw new IllegalArgumentException("Position must not be negative");
         }
+        this.origin = origin;
     }
 
     /**
@@ -34,6 +40,26 @@ public record Position(long value) implements Comparable<Position> {
         return Position.BEGINNING;
     }
 
+    @Override
+    public int intValue() {
+        return Math.toIntExact(this.origin);
+    }
+
+    @Override
+    public long longValue() {
+        return this.origin;
+    }
+
+    @Override
+    public float floatValue() {
+        return this.origin;
+    }
+
+    @Override
+    public double doubleValue() {
+        return this.origin;
+    }
+
     /**
      * Compares positions by their stable log ordering.
      *
@@ -42,11 +68,22 @@ public record Position(long value) implements Comparable<Position> {
      */
     @Override
     public int compareTo(final Position other) {
-        return Long.compare(this.value, other.value);
+        return Long.compare(this.origin, other.origin);
+    }
+
+    @Override
+    public boolean equals(final Object other) {
+        return this == other || other instanceof Position that
+            && this.origin == that.origin;
+    }
+
+    @Override
+    public int hashCode() {
+        return Long.hashCode(this.origin);
     }
 
     @Override
     public String toString() {
-        return Long.toString(this.value);
+        return Long.toString(this.origin);
     }
 }

@@ -100,7 +100,7 @@ Examples include:
     Tail
     Subscription
     Position
-    Namespace
+    NamespaceId
     EventFilter
     Index
     Head
@@ -312,11 +312,11 @@ where appropriate:
 
 ---
 
-## 10. Namespace semantics
+## 10. NamespaceId semantics
 
-Namespace is part of the semantic Event Store boundary.
+NamespaceId is part of the semantic Event Store boundary.
 
-Do not hide Namespace as implicit mutable configuration when doing so would make
+Do not hide NamespaceId as implicit mutable configuration when doing so would make
 the semantics ambiguous.
 
 Positions are namespace-local unless an ADR explicitly changes this decision.

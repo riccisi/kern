@@ -8,7 +8,7 @@ import it.riccisi.kern.EventReductionSelection;
 import it.riccisi.kern.EventSelection;
 import it.riccisi.kern.EventStore;
 import it.riccisi.kern.EventType;
-import it.riccisi.kern.Namespace;
+import it.riccisi.kern.NamespaceId;
 import it.riccisi.kern.Position;
 import it.riccisi.kern.StaleTailException;
 import it.riccisi.kern.StoredEvent;
@@ -40,7 +40,7 @@ final class InMemoryEventStoreConformanceTest extends SemanticEventStoreConforma
 
     private static final class InMemoryEventStore implements EventStore {
 
-        private final Map<Namespace, List<StoredEvent>> events;
+        private final Map<NamespaceId, List<StoredEvent>> events;
         private final List<Waiter> waiters;
 
         InMemoryEventStore() {
@@ -50,7 +50,7 @@ final class InMemoryEventStoreConformanceTest extends SemanticEventStoreConforma
 
         @Override
         public synchronized StoredEvents events(
-            final Namespace namespace,
+            final NamespaceId namespace,
             final EventFilter filter,
             final Position after
         ) {
@@ -65,7 +65,7 @@ final class InMemoryEventStoreConformanceTest extends SemanticEventStoreConforma
         }
 
         synchronized void append(
-            final Namespace namespace,
+            final NamespaceId namespace,
             final EventFilter filter,
             final Position watermark,
             final Iterable<? extends Event> events
@@ -79,7 +79,7 @@ final class InMemoryEventStoreConformanceTest extends SemanticEventStoreConforma
                 this.events.computeIfAbsent(namespace, ignored -> new ArrayList<>()).add(
                     new InMemoryStoredEvent(
                         event,
-                        new Position(this.head(namespace).value() + 1L),
+                        new Position(this.head(namespace).longValue() + 1L),
                         Instant.now()
                     )
                 );
@@ -88,7 +88,7 @@ final class InMemoryEventStoreConformanceTest extends SemanticEventStoreConforma
         }
 
         synchronized List<StoredEvent> observed(
-            final Namespace namespace,
+            final NamespaceId namespace,
             final EventFilter filter,
             final Position after,
             final Position watermark,
@@ -111,7 +111,7 @@ final class InMemoryEventStoreConformanceTest extends SemanticEventStoreConforma
         }
 
         synchronized CompletionStage<StoredEvents> next(
-            final Namespace namespace,
+            final NamespaceId namespace,
             final EventFilter filter,
             final Position watermark,
             final int count
@@ -129,7 +129,7 @@ final class InMemoryEventStoreConformanceTest extends SemanticEventStoreConforma
             return stage;
         }
 
-        private Position head(final Namespace namespace) {
+        private Position head(final NamespaceId namespace) {
             final List<StoredEvent> stored = this.events.getOrDefault(namespace, List.of());
             final Position head;
             if (stored.isEmpty()) {
@@ -141,7 +141,7 @@ final class InMemoryEventStoreConformanceTest extends SemanticEventStoreConforma
         }
 
         private Optional<StoredEvent> conflict(
-            final Namespace namespace,
+            final NamespaceId namespace,
             final EventFilter filter,
             final Position watermark
         ) {
@@ -152,7 +152,7 @@ final class InMemoryEventStoreConformanceTest extends SemanticEventStoreConforma
         }
 
         private StoredEvents window(
-            final Namespace namespace,
+            final NamespaceId namespace,
             final EventFilter filter,
             final Position after,
             final int count,
@@ -191,7 +191,7 @@ final class InMemoryEventStoreConformanceTest extends SemanticEventStoreConforma
     private static final class InMemoryStoredEvents implements StoredEvents {
 
         private final InMemoryEventStore store;
-        private final Namespace namespace;
+        private final NamespaceId namespace;
         private final EventFilter filter;
         private final Position after;
         private final Position watermark;
@@ -199,7 +199,7 @@ final class InMemoryEventStoreConformanceTest extends SemanticEventStoreConforma
 
         InMemoryStoredEvents(
             final InMemoryEventStore store,
-            final Namespace namespace,
+            final NamespaceId namespace,
             final EventFilter filter,
             final Position after,
             final Position watermark,
@@ -382,14 +382,14 @@ final class InMemoryEventStoreConformanceTest extends SemanticEventStoreConforma
 
     private static final class Waiter {
 
-        private final Namespace namespace;
+        private final NamespaceId namespace;
         private final EventFilter filter;
         private final Position watermark;
         private final int count;
         private final CompletableFuture<StoredEvents> stage;
 
         Waiter(
-            final Namespace namespace,
+            final NamespaceId namespace,
             final EventFilter filter,
             final Position watermark,
             final int count,
