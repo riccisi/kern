@@ -15,7 +15,9 @@ import lombok.RequiredArgsConstructor;
 final class MemorySubscription implements Subscription {
 
     @NonNull private final MemoryNamespace namespace;
+
     @NonNull private final EventFilter filter;
+
     @NonNull private final Position watermark;
 
     @Override
