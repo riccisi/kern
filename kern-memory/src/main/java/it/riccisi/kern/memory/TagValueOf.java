@@ -7,15 +7,20 @@ import it.riccisi.kern.TagValue;
 import java.util.Optional;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.cactoos.Scalar;
 
+/**
+ * Optional value of a tag on a stored event.
+ */
 @RequiredArgsConstructor
-final class MemoryTagValue {
+final class TagValueOf implements Scalar<Optional<TagValue>> {
 
     @NonNull private final StoredEvent event;
 
     @NonNull private final TagName name;
 
-    Optional<TagValue> value() {
+    @Override
+    public Optional<TagValue> value() {
         Optional<TagValue> value = Optional.empty();
         for (final Tag tag : this.event.tags()) {
             if (tag.name().equals(this.name)) {

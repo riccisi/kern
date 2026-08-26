@@ -7,6 +7,9 @@ import it.riccisi.kern.Tail;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Append capability tied to an in-memory observation boundary.
+ */
 @RequiredArgsConstructor
 final class MemoryTail implements Tail {
 

@@ -11,6 +11,10 @@ import lombok.NonNull;
 
 /**
  * In-memory semantic reference implementation of {@link EventStore}.
+ *
+ * <p>The store keeps independent namespace histories in process memory and is
+ * intended for conformance, tests, and simple local usage rather than durable
+ * persistence.</p>
  */
 public final class MemoryEventStore implements EventStore {
 
@@ -26,10 +30,8 @@ public final class MemoryEventStore implements EventStore {
         @NonNull final EventFilter filter,
         @NonNull final Position after
     ) {
-        return this.namespace(namespace).observe(filter, after);
+        return this.namespaces
+            .computeIfAbsent(namespace, ignored -> new MemoryNamespace()).observe(filter, after);
     }
 
-    private MemoryNamespace namespace(final NamespaceId namespace) {
-        return this.namespaces.computeIfAbsent(namespace, ignored -> new MemoryNamespace());
-    }
 }

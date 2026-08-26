@@ -20,6 +20,10 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.cactoos</groupId>
+            <artifactId>cactoos</artifactId>
+        </dependency>
+        <dependency>
             <groupId>it.riccisi.kern</groupId>
             <artifactId>kern-testkit</artifactId>
             <version>${project.version}</version>

@@ -5,44 +5,40 @@ import it.riccisi.kern.EventSelection;
 import it.riccisi.kern.EventType;
 import it.riccisi.kern.StoredEvent;
 import it.riccisi.kern.Tag;
-import java.util.function.Predicate;
+import org.cactoos.Func;
+import org.cactoos.func.UncheckedFunc;
 
-final class MemoryEventSelection implements EventSelection<Predicate<StoredEvent>> {
+/**
+ * In-memory interpreter for semantic {@link EventFilter} descriptions.
+ */
+final class MemoryEventSelection implements EventSelection<Func<StoredEvent, Boolean>> {
 
     boolean matches(final EventFilter filter, final StoredEvent event) {
-        return filter.describe(this).test(event);
+        return new UncheckedFunc<>(filter.describe(this)).apply(event);
     }
 
     @Override
-    public Predicate<StoredEvent> all(final Iterable<? extends Predicate<StoredEvent>> selections) {
-        return event -> {
-            boolean matches = true;
-            for (final Predicate<StoredEvent> selection : selections) {
-                matches = matches && selection.test(event);
-            }
-            return matches;
-        };
+    public Func<StoredEvent, Boolean> all(
+        final Iterable<? extends Func<StoredEvent, Boolean>> selections
+    ) {
+        return new AllMatches(selections);
     }
 
     @Override
-    public Predicate<StoredEvent> any(final Iterable<? extends Predicate<StoredEvent>> selections) {
-        return event -> {
-            boolean matches = false;
-            for (final Predicate<StoredEvent> selection : selections) {
-                matches = matches || selection.test(event);
-            }
-            return matches;
-        };
+    public Func<StoredEvent, Boolean> any(
+        final Iterable<? extends Func<StoredEvent, Boolean>> selections
+    ) {
+        return new AnyMatches(selections);
     }
 
     @Override
-    public Predicate<StoredEvent> typedBy(final EventType type) {
+    public Func<StoredEvent, Boolean> typedBy(final EventType type) {
         return event -> event.type().equals(type);
     }
 
     @Override
-    public Predicate<StoredEvent> taggedAs(final Tag tag) {
-        return event -> new MemoryTagValue(event, tag.name())
+    public Func<StoredEvent, Boolean> taggedAs(final Tag tag) {
+        return event -> new TagValueOf(event, tag.name())
             .value()
             .filter(value -> value.equals(tag.value()))
             .isPresent();

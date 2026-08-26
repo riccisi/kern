@@ -59,6 +59,15 @@ final class MemoryEventStoreTest {
         );
     }
 
+    @Test
+    void acceptsIdempotentRetryWithEquivalentData() {
+        assertThat(
+            "idempotency must compare Data semantically instead of by object equality",
+            MemoryEventStoreTest.idsAfterEquivalentDataRetry(),
+            contains(new EventId("course-created-7"))
+        );
+    }
+
     private static List<EventId> idsAfterExactRetry() {
         final MemoryEventStore store = new MemoryEventStore();
         final var history = store.events(
@@ -112,6 +121,24 @@ final class MemoryEventStoreTest {
         );
     }
 
+    private static List<EventId> idsAfterEquivalentDataRetry() {
+        final MemoryEventStore store = new MemoryEventStore();
+        final var tail = store.events(
+            new NamespaceId("equivalent-data"),
+            new TypedBy("CourseCreated")
+        ).tail();
+        tail.append(new SampleEvent("course-created-7", "CourseCreated", new CourseData("c7")));
+        tail.append(new SampleEvent("course-created-7", "CourseCreated", new CourseData("c7")));
+        final List<EventId> ids = new ArrayList<>();
+        for (
+            final StoredEvent stored
+                : store.events(new NamespaceId("equivalent-data"), new TypedBy("CourseCreated"))
+        ) {
+            ids.add(stored.id());
+        }
+        return ids;
+    }
+
     private static Throwable failureOf(final Action action) {
         Throwable failure = null;
         try {
@@ -127,15 +154,14 @@ final class MemoryEventStoreTest {
         void run();
     }
 
-    private record SampleEvent(EventId id, EventType type, Tags tags) implements Event {
+    private record SampleEvent(EventId id, EventType type, Tags tags, Data data) implements Event {
 
         SampleEvent(final String id, final String type) {
-            this(new EventId(id), new EventType(type), new EventTags());
+            this(new EventId(id), new EventType(type), new EventTags(), EmptyData.INSTANCE);
         }
 
-        @Override
-        public Data data() {
-            return EmptyData.INSTANCE;
+        SampleEvent(final String id, final String type, final Data data) {
+            this(new EventId(id), new EventType(type), new EventTags(), data);
         }
     }
 
@@ -163,6 +189,45 @@ final class MemoryEventStoreTest {
         @Override
         public Iterator<Attribute<?>> iterator() {
             return List.<Attribute<?>>of().iterator();
+        }
+    }
+
+    private record CourseData(String course) implements Data {
+
+        @Override
+        public Metadata meta() {
+            return new CourseMetadata();
+        }
+
+        @Override
+        public <T> T value(final Attribute<T> attribute) {
+            return attribute.type().cast(this.course);
+        }
+    }
+
+    private static final class CourseMetadata implements Metadata {
+
+        @Override
+        public String name() {
+            return "course";
+        }
+
+        @Override
+        public Iterator<Attribute<?>> iterator() {
+            return List.<Attribute<?>>of(new CourseAttribute()).iterator();
+        }
+    }
+
+    private static final class CourseAttribute implements Attribute<String> {
+
+        @Override
+        public String name() {
+            return "courseId";
+        }
+
+        @Override
+        public Class<String> type() {
+            return String.class;
         }
     }
 }

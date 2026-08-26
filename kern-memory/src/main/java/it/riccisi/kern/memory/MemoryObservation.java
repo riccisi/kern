@@ -7,43 +7,32 @@ import it.riccisi.kern.StoredEvent;
 import it.riccisi.kern.StoredEvents;
 import it.riccisi.kern.Subscription;
 import it.riccisi.kern.Tail;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
+import lombok.AccessLevel;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
+/**
+ * Bounded in-memory observation of namespace history.
+ *
+ * <p>The observation captures the original filter, exclusive lower boundary,
+ * and hidden watermark. Iteration reads only the fixed bounded window, while
+ * {@link #tail()} and {@link #follow()} continue from the captured watermark.</p>
+ */
+@RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 final class MemoryObservation implements StoredEvents {
 
-    private final MemoryNamespace namespace;
-    private final EventFilter filter;
-    private final Position after;
-    private final Position watermark;
-    private final List<EventReduction> reductions;
-
-    MemoryObservation(
-        @NonNull final MemoryNamespace namespace,
-        @NonNull final EventFilter filter,
-        @NonNull final Position after,
-        @NonNull final Position watermark,
-        @NonNull final List<EventReduction> reductions
-    ) {
-        this.namespace = namespace;
-        this.filter = filter;
-        this.after = after;
-        this.watermark = watermark;
-        this.reductions = List.copyOf(reductions);
-    }
+    @NonNull private final MemoryNamespace namespace;
+    @NonNull private final EventLog events;
+    @NonNull private final EventFilter filter;
+    @NonNull private final Position after;
+    @NonNull private final Position watermark;
 
     @Override
     public StoredEvents reduce(@NonNull final EventReduction reduction) {
-        final List<EventReduction> next = new ArrayList<>(this.reductions);
-        next.add(reduction);
-        return new MemoryObservation(
-            this.namespace,
-            this.filter,
-            this.after,
-            this.watermark,
-            next
+        return new MemoryReducedObservation(
+            this,
+            reduction
         );
     }
 
@@ -59,16 +48,10 @@ final class MemoryObservation implements StoredEvents {
 
     @Override
     public Iterator<StoredEvent> iterator() {
-        List<StoredEvent> observed = this.namespace.events(
+        return this.events.observed(
             this.filter,
             this.after,
-            this.watermark,
-            Integer.MAX_VALUE
-        );
-        final MemoryReductionSelection selection = new MemoryReductionSelection();
-        for (final EventReduction reduction : this.reductions) {
-            observed = reduction.describe(selection).apply(observed);
-        }
-        return observed.iterator();
+            this.watermark
+        ).iterator();
     }
 }

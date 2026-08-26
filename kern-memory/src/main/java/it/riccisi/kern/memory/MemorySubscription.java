@@ -8,13 +8,14 @@ import java.util.concurrent.CompletionStage;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Immutable continuation from an in-memory observation watermark.
+ */
 @RequiredArgsConstructor
 final class MemorySubscription implements Subscription {
 
     @NonNull private final MemoryNamespace namespace;
-
     @NonNull private final EventFilter filter;
-
     @NonNull private final Position watermark;
 
     @Override

@@ -10,6 +10,9 @@ import it.riccisi.kern.Tags;
 import java.time.Instant;
 import lombok.NonNull;
 
+/**
+ * Stored in-memory event composed from a client event and storage facts.
+ */
 record MemoryStoredEvent(
     @NonNull Event event,
     @NonNull Position position,
