@@ -84,6 +84,11 @@ public final class Position extends Number implements Comparable<Position> {
      * @return True when this position is inside the range.
      */
     public boolean within(@NonNull final Position lower, @NonNull final Position upper) {
+        if (lower.compareTo(upper) >= 0) {
+            throw new IllegalArgumentException(
+                "Position range lower boundary must be before upper boundary"
+            );
+        }
         return this.compareTo(lower) > 0 && this.compareTo(upper) <= 0;
     }
 
