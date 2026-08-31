@@ -1,5 +1,7 @@
 package it.riccisi.kern;
 
+import lombok.NonNull;
+
 import java.io.Serial;
 
 /**
@@ -69,6 +71,25 @@ public final class Position extends Number implements Comparable<Position> {
     @Override
     public int compareTo(final Position other) {
         return Long.compare(this.origin, other.origin);
+    }
+
+    /**
+     * Checks whether this position is inside a range.
+     *
+     * <p>The lower boundary is exclusive and the upper boundary is inclusive:
+     * {@code lower < this <= upper}.</p>
+     *
+     * @param lower The exclusive lower boundary.
+     * @param upper The inclusive upper boundary.
+     * @return True when this position is inside the range.
+     */
+    public boolean within(@NonNull final Position lower, @NonNull final Position upper) {
+        if (lower.compareTo(upper) >= 0) {
+            throw new IllegalArgumentException(
+                "Position range lower boundary must be before upper boundary"
+            );
+        }
+        return this.compareTo(lower) > 0 && this.compareTo(upper) <= 0;
     }
 
     @Override

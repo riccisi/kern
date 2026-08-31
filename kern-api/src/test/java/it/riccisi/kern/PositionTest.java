@@ -45,6 +45,55 @@ final class PositionTest {
         );
     }
 
+    @Test
+    void includesPositionsInsideRange() {
+        assertThat(
+            "Position must be inside a lower-exclusive and upper-inclusive range",
+            new Position(7L).within(new Position(3L), new Position(11L)),
+            is(true)
+        );
+    }
+
+    @Test
+    void excludesLowerBoundary() {
+        assertThat(
+            "Position range must exclude its lower boundary",
+            new Position(3L).within(new Position(3L), new Position(11L)),
+            is(false)
+        );
+    }
+
+    @Test
+    void includesUpperBoundary() {
+        assertThat(
+            "Position range must include its upper boundary",
+            new Position(11L).within(new Position(3L), new Position(11L)),
+            is(true)
+        );
+    }
+
+    @Test
+    void rejectsEqualRangeBoundaries() {
+        assertThat(
+            "Position range must reject equal boundaries",
+            PositionTest.thrownBy(
+                () -> new Position(7L).within(new Position(3L), new Position(3L))
+            ),
+            is(equalTo(IllegalArgumentException.class))
+        );
+    }
+
+    @Test
+    void rejectsInvertedRangeBoundaries() {
+        assertThat(
+            "Position range must reject inverted boundaries",
+            PositionTest.thrownBy(
+                () -> new Position(7L).within(new Position(11L), new Position(3L))
+            ),
+            is(equalTo(IllegalArgumentException.class))
+        );
+    }
+
     private static Class<? extends Throwable> thrownBy(final Executable executable) {
         Class<? extends Throwable> thrown = null;
         try {

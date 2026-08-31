@@ -15,6 +15,7 @@
     <modules>
         <module>kern-api</module>
         <module>kern-testkit</module>
+        <module>kern-memory</module>
     </modules>
 
     <properties>
