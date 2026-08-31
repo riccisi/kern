@@ -9,6 +9,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.cactoos.BiFunc;
+import org.cactoos.iterator.Sorted;
+import org.cactoos.iterator.IteratorOf;
+import org.cactoos.scalar.Folded;
+import org.cactoos.scalar.Unchecked;
 
 /**
  * Iterable view containing the latest event for each value of a tag.
@@ -20,19 +25,24 @@ import lombok.RequiredArgsConstructor;
 final class LatestEventsByTag implements Iterable<StoredEvent> {
 
     @NonNull private final Iterable<StoredEvent> events;
-
     @NonNull private final TagName tag;
 
     @Override
     public Iterator<StoredEvent> iterator() {
-        final Map<TagValue, StoredEvent> latest = new LinkedHashMap<>();
-        for (final StoredEvent event : this.events) {
-            new TagValueOf(event, this.tag).value().ifPresent(
-                value -> latest.put(value, event)
-            );
-        }
-        return latest.values().stream()
-            .sorted(Comparator.comparing(StoredEvent::position))
-            .iterator();
+        return new Sorted<>(
+            Comparator.comparing(StoredEvent::position),
+            new Unchecked<>(
+                new Folded<>(
+                    new LinkedHashMap<TagValue, StoredEvent>(),
+                    (folded, event) -> {
+                        new TagValueOf(event, this.tag).value().ifPresent(
+                            value -> folded.put(value, event)
+                        );
+                        return folded;
+                    },
+                    this.events
+                )
+            ).value().values().iterator()
+        );
     }
 }

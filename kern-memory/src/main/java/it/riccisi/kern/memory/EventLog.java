@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
 import org.cactoos.iterable.Filtered;
 import org.cactoos.iterable.HeadOf;
 import org.cactoos.list.ListOf;
@@ -66,10 +67,12 @@ final class EventLog {
         final Position after,
         final Position watermark
     ) {
-        return new Filtered<>(
-            event -> event.position().within(after, watermark)
-                && this.selection.matches(filter, event),
-            this.events
+        return new ListOf<>(
+            new Filtered<>(
+                event ->
+                    event.position().within(after, watermark) && this.selection.matches(filter, event),
+                this.events
+            )
         );
     }
 
@@ -137,6 +140,7 @@ final class EventLog {
         final Iterable<? extends Event> events
     ) {
         final IncomingEvents incoming = new IncomingEvents(events);
+
         final List<Event> missing = new ArrayList<>();
         for (final Event event : incoming) {
             final Optional<StoredEvent> existing = this.event(event);
@@ -150,13 +154,14 @@ final class EventLog {
         if (missing.isEmpty()) {
             return;
         }
+
         if (missing.size() != incoming.size()) {
             throw new IllegalArgumentException(
                 "Append must not mix new and already stored EventIds"
             );
         }
 
-        this.appendMissing(filter, watermark, incoming, missing);
+        this.appendMissing(filter, watermark, missing);
     }
 
     /**
@@ -197,7 +202,6 @@ final class EventLog {
     private void appendMissing(
         final EventFilter filter,
         final Position watermark,
-        final IncomingEvents incoming,
         final List<Event> missing
     ) {
         this.conflict(filter, watermark).ifPresent(
@@ -205,6 +209,7 @@ final class EventLog {
                 throw new StaleTailException(new MemoryConflict(event));
             }
         );
+
         for (final Event event : missing) {
             this.events.add(
                 new MemoryStoredEvent(

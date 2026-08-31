@@ -5,6 +5,9 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.cactoos.Func;
 import org.cactoos.func.UncheckedFunc;
+import org.cactoos.iterable.Mapped;
+import org.cactoos.scalar.And;
+import org.cactoos.scalar.Unchecked;
 
 /**
  * Conjunctive in-memory interpretation of event filter selections.
@@ -16,10 +19,13 @@ final class AllMatches implements Func<StoredEvent, Boolean> {
 
     @Override
     public Boolean apply(final StoredEvent event) {
-        boolean matches = true;
-        for (final Func<StoredEvent, Boolean> selection : this.selections) {
-            matches = matches && new UncheckedFunc<>(selection).apply(event);
-        }
-        return matches;
+        return new Unchecked<>(
+            new And(
+                new Mapped<>(
+                    selection -> () -> selection.apply(event),
+                    this.selections
+                )
+            )
+        ).value();
     }
 }

@@ -20,7 +20,7 @@ import lombok.RequiredArgsConstructor;
  * {@link #tail()} and {@link #follow()} continue from the captured watermark.</p>
  */
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
-final class MemoryObservation implements StoredEvents {
+final class MemoryStoredEvents implements StoredEvents {
 
     @NonNull private final MemoryNamespace namespace;
     @NonNull private final EventLog events;
@@ -30,7 +30,7 @@ final class MemoryObservation implements StoredEvents {
 
     @Override
     public StoredEvents reduce(@NonNull final EventReduction reduction) {
-        return new MemoryReducedObservation(
+        return new MemoryReducedStoredEvents(
             this,
             reduction
         );

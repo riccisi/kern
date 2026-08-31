@@ -30,8 +30,10 @@ public final class MemoryEventStore implements EventStore {
         @NonNull final EventFilter filter,
         @NonNull final Position after
     ) {
-        return this.namespaces
-            .computeIfAbsent(namespace, ignored -> new MemoryNamespace()).observe(filter, after);
+        return this.namespaces.computeIfAbsent(
+            namespace,
+            ignored -> new MemoryNamespace()
+        ).observe(filter, after);
     }
 
 }

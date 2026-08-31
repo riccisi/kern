@@ -19,14 +19,14 @@ import org.cactoos.func.UncheckedFunc;
  * original consistency boundary is preserved.</p>
  */
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
-final class MemoryReducedObservation implements StoredEvents {
+final class MemoryReducedStoredEvents implements StoredEvents {
 
     @NonNull private final StoredEvents parent;
     @NonNull private final EventReduction reduction;
 
     @Override
     public StoredEvents reduce(@NonNull final EventReduction reduction) {
-        return new MemoryReducedObservation(this, reduction);
+        return new MemoryReducedStoredEvents(this, reduction);
     }
 
     @Override

@@ -44,7 +44,7 @@ final class MemoryNamespace {
         observations.forEach(CurrentObservation::deliver);
     }
 
-    synchronized CompletionStage<StoredEvents> next(
+    CompletionStage<StoredEvents> next(
         final EventFilter filter,
         final Position watermark,
         final int count
@@ -65,6 +65,12 @@ final class MemoryNamespace {
         final Position after,
         final Position watermark
     ) {
-        return new MemoryObservation(this, this.events, filter, after, watermark);
+        return new MemoryStoredEvents(
+            this,
+            this.events,
+            filter,
+            after,
+            watermark
+        );
     }
 }

@@ -4,8 +4,11 @@ import it.riccisi.kern.EventFilter;
 import it.riccisi.kern.EventReductionSelection;
 import it.riccisi.kern.StoredEvent;
 import it.riccisi.kern.TagName;
+import org.cactoos.BiFunc;
 import org.cactoos.Func;
 import org.cactoos.iterable.Filtered;
+import org.cactoos.iterable.TailOf;
+import org.cactoos.scalar.Folded;
 
 /**
  * In-memory interpreter for semantic event reduction descriptions.
@@ -15,7 +18,7 @@ final class MemoryReductionSelection
 
     @Override
     public Func<Iterable<StoredEvent>, Iterable<StoredEvent>> latest() {
-        return LatestEvent::new;
+        return events -> new TailOf<>(1, events);
     }
 
     @Override

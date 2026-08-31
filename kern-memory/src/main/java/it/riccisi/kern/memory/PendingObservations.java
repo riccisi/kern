@@ -31,15 +31,22 @@ final class PendingObservations {
         final Position watermark,
         final int count
     ) {
-        final PendingObservation observation = new PendingObservation(
-            namespace,
-            this.events,
-            filter,
-            watermark,
-            count
-        );
-        final CurrentObservation current = observation.check();
-        current.manage(this);
+
+        final PendingObservation observation;
+        final CurrentObservation current;
+
+        synchronized (this) {
+            observation = new PendingObservation(
+                namespace,
+                this.events,
+                filter,
+                watermark,
+                count
+            );
+            current = observation.check();
+            current.manage(this);
+        }
+
         current.deliver();
         return observation;
     }

@@ -4,7 +4,9 @@ import it.riccisi.kern.StoredEvent;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.cactoos.Func;
-import org.cactoos.func.UncheckedFunc;
+import org.cactoos.iterable.Mapped;
+import org.cactoos.scalar.Or;
+import org.cactoos.scalar.Unchecked;
 
 /**
  * Disjunctive in-memory interpretation of event filter selections.
@@ -16,10 +18,13 @@ final class AnyMatches implements Func<StoredEvent, Boolean> {
 
     @Override
     public Boolean apply(final StoredEvent event) {
-        boolean matches = false;
-        for (final Func<StoredEvent, Boolean> selection : this.selections) {
-            matches = matches || new UncheckedFunc<>(selection).apply(event);
-        }
-        return matches;
+        return new Unchecked<>(
+            new Or(
+                new Mapped<>(
+                    selection -> () -> selection.apply(event),
+                    this.selections
+                )
+            )
+        ).value();
     }
 }
